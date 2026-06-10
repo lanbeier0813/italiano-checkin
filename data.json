@@ -1,12 +1,17 @@
 {
   "users": {
-    "Antonio": {
+    "toni": {
       "password": "lanbeier0813",
+      "role": "teacher"
+    },
+    "admin": {
+      "password": "admin",
       "role": "teacher"
     }
   },
   "dailyTasks": {},
   "studentTasks": {},
   "checkins": {},
-  "streaks": {}
+  "streaks": {},
+  "chatMessages": []
 }
