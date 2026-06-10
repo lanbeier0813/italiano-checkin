@@ -13,8 +13,8 @@
 <title>🇮🇹 意大利语暑期打卡</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Helvetica Neue',sans-serif;background:linear-gradient(135deg,#f0f4f0,#e8f0e3 50%,#f5f0e8);min-height:100vh;min-height:-webkit-fill-available;color:#2c3e2d}
-.container{max-width:500px;margin:0 auto;padding:16px;padding-bottom:max(16px,env(safe-area-inset-bottom));min-height:100vh}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Helvetica Neue',sans-serif;background:linear-gradient(135deg,#f0f4f0,#e8f0e3 50%,#f5f0e8);min-height:100vh;min-height:-webkit-fill-available;color:#2c3e2d;padding-bottom:80px;padding-bottom:calc(80px + env(safe-area-inset-bottom))}
+.container{max-width:500px;margin:0 auto;padding:16px;padding-bottom:20px}
 
 /* Auth */
 .auth-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;min-height:-webkit-fill-available;padding:20px}
@@ -39,12 +39,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Helv
 .page.active{display:block}
 
 /* Header */
-.header{background:linear-gradient(135deg,#009246,#008C3A 40%,#ce2b37 40%,#ce2b37 60%,#fff 60%,#fff);border-radius:20px;padding:20px;margin-bottom:16px;position:relative;overflow:hidden;box-shadow:0 4px 20px rgba(0,146,70,.2)}
+.header{background:linear-gradient(135deg,#009246,#008C3A 40%,#ce2b37 40%,#ce2b37 60%,#fff 60%,#fff);border-radius:20px;padding:16px 20px;margin-bottom:16px;position:relative;overflow:hidden;box-shadow:0 4px 20px rgba(0,146,70,.2)}
 .header::before{content:'';position:absolute;inset:0;background:rgba(255,255,255,.12);backdrop-filter:blur(2px)}
 .header .hc{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center}
-.header h1{font-size:20px;color:#fff;text-shadow:0 2px 4px rgba(0,0,0,.2)}
-.logout-btn{color:#fff;font-size:13px;cursor:pointer;padding:8px 16px;border:1px solid rgba(255,255,255,.5);border-radius:20px;background:rgba(255,255,255,.15);-webkit-appearance:none}
-.user-tag{font-size:12px;color:rgba(255,255,255,.85)}
+.header h1{font-size:18px;color:#fff;text-shadow:0 2px 4px rgba(0,0,0,.2)}
+.user-tag{font-size:11px;color:rgba(255,255,255,.85)}
+
+/* Bottom Nav */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;border-top:1px solid #eee;z-index:100;padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -2px 10px rgba(0,0,0,.05)}
+.bottom-nav .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 4px 6px;cursor:pointer;color:#999;font-size:10px;gap:3px;transition:all .15s;-webkit-tap-highlight-color:transparent;border:none;background:none}
+.bottom-nav .nav-item .nav-icon{font-size:20px;line-height:1}
+.bottom-nav .nav-item.active{color:#009246;font-weight:600}
+.bottom-nav .nav-item:active{opacity:.6}
 
 /* Stats */
 .stats-row{display:flex;gap:10px;margin-bottom:16px}
@@ -55,52 +61,43 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Helv
 .stat-card.flower .number{color:#e74c3c}
 .stat-card .label{font-size:11px;color:#888;margin-top:2px}
 
-/* Progress */
-.progress-wrap{margin:16px 0 8px}
-.progress-label{display:flex;justify-content:space-between;font-size:12px;color:#888;margin-bottom:4px}
-.progress-bar{height:10px;background:#e0e0e0;border-radius:5px;overflow:hidden}
-.progress-fill{height:100%;background:linear-gradient(90deg,#009246,#00b359);border-radius:5px;transition:width .5s}
-
 /* Section */
 .section-title{font-size:15px;font-weight:700;margin:20px 0 10px;display:flex;align-items:center;gap:8px}
 
-/* Task Card */
-.task-card{background:#fff;border-radius:16px;padding:16px;margin-bottom:10px;box-shadow:0 2px 12px rgba(0,0,0,.06);display:flex;align-items:center;gap:12px;transition:all .2s}
-.task-card.checked{background:#f0faf3;border:2px solid #009246}
+/* Task Card - student read-only */
+.task-card{background:#fff;border-radius:16px;padding:16px;margin-bottom:10px;box-shadow:0 2px 12px rgba(0,0,0,.06);display:flex;align-items:flex-start;gap:12px;transition:all .2s}
 .task-card .task-icon{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
 .task-card .task-icon.hw{background:#e3f2fd}.task-card .task-icon.dt{background:#fff3e0}
 .task-card .task-icon.rc{background:#f3e5f5}.task-card .task-icon.sp{background:#e8f5e9}
 .task-info{flex:1;min-width:0}
 .task-info .task-name{font-weight:700;font-size:14px}
-.task-info .task-content{font-size:12px;color:#555;margin-top:5px;background:#f9f9f9;padding:8px 10px;border-radius:8px;line-height:1.5;word-break:break-all}
-.check-btn{width:44px;height:44px;border-radius:50%;border:3px solid #ddd;background:#fff;font-size:18px;cursor:pointer;flex-shrink:0;transition:all .2s;display:flex;align-items:center;justify-content:center;-webkit-appearance:none}
+.task-info .task-content{font-size:13px;color:#555;margin-top:6px;background:#f9f9f9;padding:10px 12px;border-radius:8px;line-height:1.6;word-break:break-all}
+
+/* Check-in card (teacher) */
+.checkin-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0f0}
+.checkin-row:last-child{border-bottom:none}
+.checkin-row .ci-icon{font-size:22px;width:36px;text-align:center;flex-shrink:0}
+.checkin-row .ci-name{flex:1;font-size:14px;font-weight:600}
+.checkin-row .ci-status{font-size:12px;color:#888;margin-right:8px}
+.check-btn{width:40px;height:40px;border-radius:50%;border:3px solid #ddd;background:#fff;font-size:16px;cursor:pointer;flex-shrink:0;transition:all .15s;display:flex;align-items:center;justify-content:center;-webkit-appearance:none}
 .check-btn:active{border-color:#009246;transform:scale(.92)}
 .check-btn.done{background:#009246;border-color:#009246;color:#fff}
 
-/* Reward */
-.reward-area{background:linear-gradient(135deg,#fff9e6,#fff3cd);border-radius:16px;padding:18px;margin-top:20px;box-shadow:0 2px 12px rgba(0,0,0,.06);text-align:center}
-.reward-area h3{font-size:15px;margin-bottom:8px}
-.flower-row{display:flex;justify-content:center;gap:6px;margin:10px 0;flex-wrap:wrap}
-.flower{font-size:30px;animation:bloom .5s ease}
-@keyframes bloom{0%{transform:scale(0) rotate(-30deg);opacity:0}100%{transform:scale(1) rotate(0deg);opacity:1}}
-.reward-rule{font-size:11px;color:#996;margin-top:6px}
+/* Podium */
+.podium-wrap{background:#fff;border-radius:20px;padding:24px 16px 16px;box-shadow:0 4px 20px rgba(0,0,0,.08);margin-bottom:16px}
+.podium-wrap h3{text-align:center;font-size:16px;margin-bottom:20px}
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:8px;min-height:180px}
+.podium-col{display:flex;flex-direction:column;align-items:center;width:90px}
+.podium-col .p-name{font-size:13px;font-weight:700;margin-bottom:4px;text-align:center;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.podium-col .p-flower{font-size:11px;color:#e74c3c;margin-bottom:4px}
+.podium-col .p-bar{border-radius:10px 10px 0 0;width:100%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:22px;transition:height .5s ease}
+.podium-col.first .p-bar{background:linear-gradient(180deg,#ffd700,#ffb300);height:120px}
+.podium-col.second .p-bar{background:linear-gradient(180deg,#c0c0c0,#9e9e9e);height:90px}
+.podium-col.third .p-bar{background:linear-gradient(180deg,#cd7f32,#a0522d);height:65px}
+.podium-col.empty .p-bar{background:#e0e0e0;height:40px}
+.podium-col.first{order:2}.podium-col.second{order:1}.podium-col.third{order:3}
 
-/* History */
-.history-area{margin-top:20px}
-.history-area h3{font-size:15px;margin-bottom:8px}
-.history-item{background:#fff;border-radius:10px;padding:12px 14px;margin-bottom:6px;font-size:12px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 6px rgba(0,0,0,.04)}
-.history-item .date{color:#888;font-size:11px}
-.badge{font-size:10px;padding:3px 7px;border-radius:20px;font-weight:600}
-.badge.hw{background:#e3f2fd;color:#1565c0}.badge.dt{background:#fff3e0;color:#e65100}
-.badge.rc{background:#f3e5f5;color:#7b1fa2}.badge.sp{background:#e8f5e9;color:#2e7d32}
-
-/* === TEACHER === */
-.tabs{display:flex;gap:4px;margin-bottom:16px;background:#fff;border-radius:14px;padding:4px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
-.tab-btn{flex:1;padding:10px 6px;border:none;background:none;border-radius:11px;font-size:13px;font-weight:600;cursor:pointer;color:#888;transition:all .2s;-webkit-appearance:none}
-.tab-btn.active{background:#009246;color:#fff}
-.tab-content{display:none}
-.tab-content.active{display:block}
-
+/* Teacher Student Card */
 .student-card{background:#fff;border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.05);cursor:pointer;transition:all .2s;margin-bottom:10px}
 .student-card:active{box-shadow:0 4px 16px rgba(0,0,0,.1);transform:scale(.98)}
 .student-card .s-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
@@ -111,9 +108,36 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Helv
 .s-dot{width:10px;height:10px;border-radius:50%}
 .s-dot.done{background:#009246}.s-dot.pending{background:#ddd}
 
-.empty-state{text-align:center;color:#bbb;padding:40px 20px;font-size:14px}
-.empty-state .icon{font-size:48px;margin-bottom:10px}
+/* Teacher tabs */
+.tabs{display:flex;gap:4px;margin-bottom:16px;background:#fff;border-radius:14px;padding:4px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.tab-btn{flex:1;padding:10px 6px;border:none;background:none;border-radius:11px;font-size:13px;font-weight:600;cursor:pointer;color:#888;transition:all .2s;-webkit-appearance:none}
+.tab-btn.active{background:#009246;color:#fff}
+.tab-content{display:none}
+.tab-content.active{display:block}
 
+/* Chat */
+.chat-area{display:flex;flex-direction:column;height:calc(100vh - 220px);height:calc(100dvh - 220px);min-height:300px}
+.chat-messages{flex:1;overflow-y:auto;padding:4px 0;margin-bottom:8px;-webkit-overflow-scrolling:touch}
+.chat-msg{margin-bottom:10px;padding:0 4px}
+.chat-msg .cm-header{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.chat-msg .cm-name{font-weight:700;font-size:12px}
+.chat-msg .cm-role{font-size:10px;padding:1px 6px;border-radius:8px;font-weight:600}
+.chat-msg .cm-role.teacher{background:#fce4ec;color:#c62828}
+.chat-msg .cm-role.student{background:#e3f2fd;color:#1565c0}
+.chat-msg .cm-time{font-size:10px;color:#bbb;margin-left:4px}
+.chat-msg .cm-body{background:#fff;display:inline-block;padding:8px 12px;border-radius:14px;font-size:14px;max-width:85%;word-break:break-word;line-height:1.5;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.chat-msg.mine .cm-body{background:#dcf8c6}
+.chat-msg.mine{text-align:right}
+.chat-msg.mine .cm-header{justify-content:flex-end}
+.chat-input-row{display:flex;gap:8px;align-items:center}
+.chat-input-row input{flex:1;padding:10px 14px;border:2px solid #e8e8e8;border-radius:24px;font-size:14px;outline:none;-webkit-appearance:none;min-height:44px}
+.chat-input-row input:focus{border-color:#009246}
+.chat-input-row button{width:44px;height:44px;border-radius:50%;border:none;background:#009246;color:#fff;font-size:18px;cursor:pointer;flex-shrink:0;-webkit-appearance:none;display:flex;align-items:center;justify-content:center}
+.chat-input-row button:active{opacity:.8}
+.chat-refresh{text-align:center;margin-bottom:6px}
+.chat-refresh button{font-size:11px;color:#888;background:none;border:1px solid #ddd;padding:4px 12px;border-radius:12px;cursor:pointer;-webkit-appearance:none}
+
+/* Task Editor */
 .task-editor{margin-bottom:16px}
 .task-editor label{display:block;font-size:12px;font-weight:600;color:#666;margin-bottom:4px}
 .task-editor textarea{width:100%;padding:10px 12px;border:2px solid #e8e8e8;border-radius:10px;font-size:14px;resize:vertical;min-height:60px;outline:none;margin-bottom:10px;font-family:inherit;line-height:1.5;-webkit-appearance:none}
@@ -131,17 +155,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Helv
 .btn-sm.danger{background:#fff;color:#ce2b37;border:1px solid #ce2b37}
 .btn-sm.outline{background:#fff;color:#009246;border:1px solid #009246}
 
+/* Settings */
 .settings-card{background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 10px rgba(0,0,0,.05);margin-bottom:14px}
 .settings-card h4{font-size:14px;margin-bottom:12px}
 .settings-card .hint{font-size:11px;color:#999;margin-top:6px;line-height:1.5}
 .settings-card input{width:100%;padding:10px 12px;border:2px solid #e8e8e8;border-radius:10px;font-size:14px;outline:none;-webkit-appearance:none;margin-bottom:10px}
 .settings-card input:focus{border-color:#009246}
 .settings-card .row{display:flex;gap:8px;align-items:flex-end}
-
 .user-list-item{background:#fff;border-radius:10px;padding:12px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 4px rgba(0,0,0,.03)}
 .role-tag{font-size:10px;padding:3px 8px;border-radius:12px;font-weight:600}
 .role-tag.teacher{background:#fce4ec;color:#c62828}
 .role-tag.student{background:#e3f2fd;color:#1565c0}
+
+.empty-state{text-align:center;color:#bbb;padding:40px 20px;font-size:14px}
+.empty-state .icon{font-size:48px;margin-bottom:10px}
 
 /* Toast */
 .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:12px 24px;border-radius:30px;font-size:14px;z-index:999;pointer-events:none;white-space:nowrap;animation:slideDown .3s ease;max-width:90vw}
@@ -153,26 +180,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Helv
 .confetti-piece{position:absolute;font-size:24px;animation:fall linear forwards}
 @keyframes fall{0%{transform:translateY(-10vh) rotate(0deg);opacity:1}100%{transform:translateY(110vh) rotate(720deg);opacity:0}}
 
-/* Loading */
 .loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.85);z-index:997;display:flex;align-items:center;justify-content:center;flex-direction:column;font-size:14px;color:#888}
 .spinner{width:36px;height:36px;border:3px solid #e0e0e0;border-top-color:#009246;border-radius:50%;animation:spin .8s linear infinite;margin-bottom:10px}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* PWA install banner */
 .install-banner{display:none;background:#fff;border-radius:14px;padding:14px 18px;margin-bottom:14px;box-shadow:0 2px 12px rgba(0,0,0,.08);align-items:center;gap:12px}
 .install-banner.show{display:flex}
 .install-banner .ib-icon{font-size:36px}
 .install-banner .ib-text{flex:1;font-size:13px;line-height:1.4}
 .install-banner .ib-btn{white-space:nowrap;padding:8px 16px;background:#009246;color:#fff;border:none;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;-webkit-appearance:none}
 
-.footer{text-align:center;color:#bbb;font-size:11px;margin:20px 0 30px}
+.footer{text-align:center;color:#bbb;font-size:11px;margin:20px 0 10px}
 .sync-status{font-size:11px;color:#aaa;text-align:center;margin-top:6px}
 .sync-status.error{color:#ce2b37}
 .sync-status.ok{color:#009246}
 
-@supports(padding-bottom:env(safe-area-inset-bottom)){
-  .toast{padding-bottom:max(12px,env(safe-area-inset-bottom))}
-}
+/* Logout button in settings */
+.logout-danger{width:100%;padding:14px;background:#fff;color:#ce2b37;border:2px solid #ce2b37;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px;-webkit-appearance:none}
+.logout-danger:active{background:#fef2f2}
 </style>
 </head>
 <body>
@@ -228,7 +253,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Helv
 <!-- TEACHER -->
 <div class="page" id="teacherPage">
   <div class="container">
-    <div class="install-banner" id="installBanner">
+    <div class="install-banner" id="installBannerT">
       <span class="ib-icon">📲</span>
       <span class="ib-text">添加到主屏幕，像 App 一样使用</span>
       <button class="ib-btn" onclick="installPWA()">安装</button>
@@ -239,25 +264,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Helv
           <h1>👨‍🏫 教师端</h1>
           <div class="user-tag" id="teacherNameTag"></div>
         </div>
-        <button class="logout-btn" onclick="doLogout()">退出</button>
       </div>
     </div>
-    <div class="tabs">
-      <button class="tab-btn active" onclick="switchTeacherTab('students')">📊 学生</button>
-      <button class="tab-btn" onclick="switchTeacherTab('tasks')">📝 作业</button>
-      <button class="tab-btn" onclick="switchTeacherTab('settings')">⚙️ 设置</button>
-    </div>
-    <div class="tab-content active" id="teacherTabStudents"></div>
-    <div class="tab-content" id="teacherTabTasks"></div>
-    <div class="tab-content" id="teacherTabSettings"></div>
+    <div id="teacherMain"></div>
     <div class="sync-status" id="syncStatus"></div>
+  </div>
+  <div class="bottom-nav" id="teacherNav">
+    <button class="nav-item active" onclick="switchTeacherTab('students')"><span class="nav-icon">📊</span>学生</button>
+    <button class="nav-item" onclick="switchTeacherTab('tasks')"><span class="nav-icon">📝</span>作业</button>
+    <button class="nav-item" onclick="switchTeacherTab('chat')"><span class="nav-icon">💬</span>聊天</button>
+    <button class="nav-item" onclick="switchTeacherTab('settings')"><span class="nav-icon">⚙️</span>设置</button>
   </div>
 </div>
 
 <!-- STUDENT -->
 <div class="page" id="studentPage">
   <div class="container">
-    <div class="install-banner" id="installBanner2">
+    <div class="install-banner" id="installBannerS">
       <span class="ib-icon">📲</span>
       <span class="ib-text">添加到主屏幕，像 App 一样使用</span>
       <button class="ib-btn" onclick="installPWA()">安装</button>
@@ -268,31 +291,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Helv
           <h1>🇮🇹 Il Mio Diario Estivo</h1>
           <div class="user-tag" id="studentNameTag"></div>
         </div>
-        <button class="logout-btn" onclick="doLogout()">退出</button>
       </div>
     </div>
-    <div class="stats-row">
-      <div class="stat-card"><div class="icon">🔥</div><div class="number" id="streakCount">0</div><div class="label">连续打卡</div></div>
-      <div class="stat-card flower"><div class="icon">🌹</div><div class="number" id="flowerCount">0</div><div class="label">小红花</div></div>
-      <div class="stat-card"><div class="icon">📅</div><div class="number" id="todayDate"></div><div class="label">今日</div></div>
-    </div>
-    <div class="progress-wrap">
-      <div class="progress-label"><span>今日进度</span><span id="progressText">0/4</span></div>
-      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
-    </div>
-    <div class="section-title">📝 今日任务 · Compiti di Oggi</div>
-    <div id="taskList"></div>
-    <div class="reward-area">
-      <h3>🏆 奖励机制</h3>
-      <div class="flower-row" id="flowerRow"></div>
-      <p id="flowerMsg" style="font-size:13px;color:#888;">连续打卡 5 天获得 1 朵小红花 🌹</p>
-      <div class="reward-rule">📋 四项全部完成 = 打卡成功 · 连续5天 = 🌹×1 · 可线下兑换</div>
-    </div>
-    <div class="history-area">
-      <h3>📋 打卡记录</h3>
-      <div id="historyList"></div>
-    </div>
-    <div class="footer">Buono studio! 🇮🇹</div>
+    <div id="studentMain"></div>
+  </div>
+  <div class="bottom-nav" id="studentNav">
+    <button class="nav-item active" onclick="switchStudentTab('tasks')"><span class="nav-icon">📝</span>作业</button>
+    <button class="nav-item" onclick="switchStudentTab('podium')"><span class="nav-icon">🏆</span>排行榜</button>
+    <button class="nav-item" onclick="switchStudentTab('chat')"><span class="nav-icon">💬</span>聊天</button>
+    <button class="nav-item" onclick="switchStudentTab('settings')"><span class="nav-icon">⚙️</span>设置</button>
   </div>
 </div>
 
@@ -302,12 +309,14 @@ const REPO_OWNER = 'lanbeier0813';
 const REPO_NAME = 'italiano-checkin';
 const DATA_PATH = 'data.json';
 const TOKEN_KEY = 'github_token';
+const CHAT_MAX = 200; // max chat messages to keep
 
 // ===== STATE =====
 let appData = null;
 let dataSha = null;
 let currentUser = null;
-let teacherTaskStudent = '__default__'; // '__default__' or student name
+let teacherTaskStudent = '__default__';
+let chatTimer = null;
 
 // ===== TOKEN =====
 function getToken() { return localStorage.getItem(TOKEN_KEY) || ''; }
@@ -331,11 +340,12 @@ function getDefaultTask(cat, ds) {
 
 function getInitialData() {
   return {
-    users: { 'Antonio': { password: 'lanbeier0813', role: 'teacher' } },
-    dailyTasks: {},    // { date: { homework, dictation, recite, speaking } }  — 默认（全局）作业
-    studentTasks: {},  // { studentName: { date: { homework, dictation, recite, speaking } } }  — 按学生定制作业
+    users: { 'toni': { password: 'lanbeier0813', role: 'teacher' } },
+    dailyTasks: {},
+    studentTasks: {},
     checkins: {},
-    streaks: {}
+    streaks: {},
+    chatMessages: []
   };
 }
 
@@ -347,6 +357,11 @@ async function fetchData() {
   if(!r.ok) throw new Error('读取失败('+r.status+')');
   const j=await r.json(); dataSha=j.sha;
   appData=JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\n/g,'')))));
+  if(!appData.chatMessages) appData.chatMessages=[];
+  if(!appData.users['toni'] && appData.users['Antonio']) {
+    appData.users['toni'] = appData.users['Antonio'];
+    delete appData.users['Antonio'];
+  }
 }
 
 async function saveData(msg) {
@@ -365,13 +380,10 @@ function saveLocalData(){localStorage.setItem(LK,JSON.stringify(appData));}
 
 // ===== GET TASK FOR STUDENT =====
 function getTaskForStudent(student, date, cat) {
-  // 1. Check per-student override
   const st = appData.studentTasks || {};
   if (st[student] && st[student][date] && st[student][date][cat]) return st[student][date][cat];
-  // 2. Fall back to global dailyTasks
   const dt = appData.dailyTasks || {};
   if (dt[date] && dt[date][cat]) return dt[date][cat];
-  // 3. Fall back to default pool
   return getDefaultTask(cat, date);
 }
 
@@ -395,18 +407,17 @@ async function doLogin(){
   showLoading('登录中...');
   try{
     const ld=loadLocalData();
+    // Migrate old Antonio -> toni
+    if(ld.users['Antonio'] && !ld.users['toni']){ld.users['toni']=ld.users['Antonio'];delete ld.users['Antonio'];saveLocalData();}
     const user=ld.users[u];
     if(!user){e.textContent='用户不存在';hideLoading();return;}
     if(user.password!==p){e.textContent='密码错误';hideLoading();return;}
     currentUser={username:u,role:user.role};
     appData=ld;
-    if(user.role==='teacher'){
-      if(hasToken()){try{await fetchData();}catch(x){}}
-      showTeacherPage();
-    }else{
-      if(hasToken()){try{await fetchData();}catch(x){}}
-      showStudentPage();
-    }
+    if(!appData.chatMessages) appData.chatMessages=[];
+    if(hasToken()){try{await fetchData();if(!appData.chatMessages)appData.chatMessages=[];}catch(x){}}
+    if(user.role==='teacher') showTeacherPage();
+    else showStudentPage();
     hideLoading();
   }catch(x){e.textContent='网络错误，请重试';hideLoading();}
 }
@@ -419,10 +430,12 @@ async function doRegister(){
   if(!u||!p){e.textContent='请填写完整';return;}
   if(p.length<4){e.textContent='密码至少4位';return;}
   if(p!==p2){e.textContent='两次密码不一致';return;}
-  if(u.toLowerCase()==='antonio'){e.textContent='该用户名为教师保留';return;}
+  const reserved=['toni','antonio','admin','teacher'];
+  if(reserved.includes(u.toLowerCase())){e.textContent='该用户名为教师保留';return;}
   showLoading('注册中...');
   try{
     if(hasToken()){try{await fetchData();}catch(x){appData=loadLocalData();}}else{appData=loadLocalData();}
+    if(!appData.chatMessages) appData.chatMessages=[];
     if(appData.users[u]){e.textContent='用户名已存在';hideLoading();return;}
     appData.users[u]={password:p,role:'student'};
     if(hasToken()){try{await saveData('注册学生:'+u);}catch(x){saveLocalData();}}else{saveLocalData();}
@@ -430,22 +443,18 @@ async function doRegister(){
   }catch(x){e.textContent='网络错误，请重试';hideLoading();}
 }
 
-function doLogout(){currentUser=null;appData=null;dataSha=null;showPage('loginPage');document.getElementById('loginUser').value='';document.getElementById('loginPass').value='';document.getElementById('loginError').textContent='';}
+function doLogout(){
+  if(chatTimer){clearInterval(chatTimer);chatTimer=null;}
+  currentUser=null;appData=null;dataSha=null;
+  showPage('loginPage');document.getElementById('loginUser').value='';document.getElementById('loginPass').value='';document.getElementById('loginError').textContent='';
+}
 
 // ===== TEACHER =====
 function showTeacherPage(){
   showPage('teacherPage');
   document.getElementById('teacherNameTag').textContent=currentUser.username+'（教师）';
   updateSyncStatus();
-  switchTeacherTabUI('students');
-  renderTeacherStudents();
-  renderTeacherTasks();
-  renderTeacherSettings();
-}
-
-async function refreshTeacherData(){
-  if(!hasToken())return;
-  try{await fetchData();updateSyncStatus(true);}catch(e){updateSyncStatus(false);}
+  switchTeacherTab('students');
 }
 
 function updateSyncStatus(ok){
@@ -456,64 +465,142 @@ function updateSyncStatus(ok){
 }
 
 function switchTeacherTab(tab){
-  switchTeacherTabUI(tab);
-  if(tab==='students')renderTeacherStudents();
-  if(tab==='tasks')renderTeacherTasks();
-  if(tab==='settings')renderTeacherSettings();
+  document.querySelectorAll('#teacherNav .nav-item').forEach(b=>b.classList.remove('active'));
+  const map={students:0,tasks:1,chat:2,settings:3};
+  document.querySelectorAll('#teacherNav .nav-item')[map[tab]].classList.add('active');
+  const main=document.getElementById('teacherMain');
+  if(tab==='students') renderTeacherStudents(main);
+  else if(tab==='tasks') renderTeacherTasks(main);
+  else if(tab==='chat'){renderChat(main);startChatPoll();}
+  else if(tab==='settings'){if(chatTimer){clearInterval(chatTimer);chatTimer=null;}renderTeacherSettings(main);}
 }
 
-function switchTeacherTabUI(tab){
-  document.querySelectorAll('#teacherPage .tab-btn').forEach(b=>b.classList.remove('active'));
-  document.querySelectorAll('#teacherPage .tab-content').forEach(c=>c.classList.remove('active'));
-  const map={students:0,tasks:1,settings:2};
-  document.querySelectorAll('#teacherPage .tab-btn')[map[tab]].classList.add('active');
-  document.getElementById('teacherTab'+tab.charAt(0).toUpperCase()+tab.slice(1)).classList.add('active');
-}
-
-function renderTeacherStudents(){
-  const el=document.getElementById('teacherTabStudents');
+// ===== TEACHER: Students + Podium + Check-in =====
+function renderTeacherStudents(main){
   const students=Object.entries(appData.users).filter(([,v])=>v.role==='student');
-  if(students.length===0){el.innerHTML='<div class="empty-state"><div class="icon">📭</div>还没有学生注册<br><span style="font-size:12px;">让学生注册账号后即可在此查看</span></div>';return;}
   const today=getToday();
-  el.innerHTML=students.map(([name])=>{
-    const ci=(appData.checkins[name]||{})[today]||{};
-    const st=appData.streaks[name]||{};
-    const dc=['homework','dictation','recite','speaking'].filter(k=>ci[k]).length;
-    const ad=dc===4;
-    return`<div class="student-card" onclick="showStudentDetail('${name}')"><div class="s-top"><div class="s-name">👤 ${name} ${ad?'🌟':''}</div><span style="font-size:12px;color:#888;">今日 ${dc}/4</span></div><div class="s-stats"><span>🔥 <b>${st.streak||0}</b> 天</span><span>🌹 <b>${st.flowers||0}</b> 朵</span></div><div class="s-today">${['homework','dictation','recite','speaking'].map(k=>`<span class="s-dot ${ci[k]?'done':'pending'}" title="${k}"></span>`).join('')}</div></div>`;
-  }).join('')+'<div id="studentDetailArea" style="margin-top:16px;"></div>';
+
+  // Podium
+  let podiumHTML=renderPodium();
+
+  // Student list
+  let listHTML='';
+  if(students.length===0){
+    listHTML='<div class="empty-state"><div class="icon">📭</div>还没有学生注册</div>';
+  }else{
+    listHTML=students.map(([name])=>{
+      const ci=(appData.checkins[name]||{})[today]||{};
+      const st=appData.streaks[name]||{};
+      const dc=['homework','dictation','recite','speaking'].filter(k=>ci[k]).length;
+      const ad=dc===4;
+      return`<div class="student-card" onclick="showStudentCheckin('${name}')"><div class="s-top"><div class="s-name">👤 ${name} ${ad?'🌟':''}</div><span style="font-size:12px;color:#888;">今日 ${dc}/4</span></div><div class="s-stats"><span>🔥 <b>${st.streak||0}</b> 天</span><span>🌹 <b>${st.flowers||0}</b> 朵</span></div><div class="s-today">${['homework','dictation','recite','speaking'].map(k=>`<span class="s-dot ${ci[k]?'done':'pending'}" title="${k}"></span>`).join('')}</div></div>`;
+    }).join('');
+  }
+
+  main.innerHTML=podiumHTML+`<div class="section-title">👥 学生打卡</div>`+listHTML+'<div id="checkinDetailArea"></div>';
 }
 
-function showStudentDetail(name){
-  const area=document.getElementById('studentDetailArea');
-  const cis=appData.checkins[name]||{};
-  const st=appData.streaks[name]||{streak:0,flowers:0};
-  const dates=Object.keys(cis).sort().reverse().slice(0,14);
-  area.innerHTML=`<div style="background:#fff;border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.05)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><b>📋 ${name} 的打卡记录</b><span style="font-size:11px;color:#888;">🔥${st.streak}天 🌹${st.flowers}朵</span></div>${dates.length===0?'<div class="empty-state" style="padding:20px">暂无打卡记录</div>':dates.map(date=>{const r=cis[date];const done=['homework','dictation','recite','speaking'].filter(k=>r[k]).length;const d=new Date(date+'T00:00:00');const wd=['日','一','二','三','四','五','六'][d.getDay()];return`<div class="history-item"><div><b>${d.getMonth()+1}/${d.getDate()} 周${wd}</b><div class="date">${done}/4</div></div><div style="display:flex;gap:4px">${r.homework?'<span class="badge hw">📝</span>':'<span style="color:#ddd">📝</span>'}${r.dictation?'<span class="badge dt">👂</span>':'<span style="color:#ddd">👂</span>'}${r.recite?'<span class="badge rc">📖</span>':'<span style="color:#ddd">📖</span>'}${r.speaking?'<span class="badge sp">🗣️</span>':'<span style="color:#ddd">🗣️</span>'}</div></div>`;}).join('')}<button class="btn-sm outline" style="margin-top:10px;width:100%" onclick="document.getElementById('studentDetailArea').innerHTML=''">收起</button></div>`;
+function renderPodium(){
+  const students=Object.entries(appData.users).filter(([,v])=>v.role==='student');
+  const ranked=students.map(([name])=>({name,flowers:(appData.streaks[name]||{}).flowers||0}))
+    .sort((a,b)=>b.flowers-a.flowers);
+  
+  const pos=['first','second','third'];
+  const medals=['🥇','🥈','🥉'];
+  const cols=[];
+  for(let i=0;i<3;i++){
+    if(i<ranked.length && ranked[i].flowers>0){
+      cols.push(`<div class="podium-col ${pos[i]}"><div class="p-name">${medals[i]} ${ranked[i].name}</div><div class="p-flower">🌹×${ranked[i].flowers}</div><div class="p-bar">${i+1}</div></div>`);
+    }else{
+      cols.push(`<div class="podium-col ${pos[i]} empty"><div class="p-name">${medals[i]} 虚位以待</div><div class="p-flower">--</div><div class="p-bar">${i+1}</div></div>`);
+    }
+  }
+
+  return `<div class="podium-wrap"><h3>🏆 小红花排行榜</h3><div class="podium">${cols[1]}${cols[0]}${cols[2]}</div><div style="text-align:center;margin-top:8px;font-size:11px;color:#888">仅展示前三名，实时更新</div></div>`;
 }
 
-function renderTeacherTasks(){
-  const el=document.getElementById('teacherTabTasks');
+function showStudentCheckin(name){
+  const area=document.getElementById('checkinDetailArea');
+  const today=getToday();
+  if(!appData.checkins[name])appData.checkins[name]={};
+  if(!appData.checkins[name][today])appData.checkins[name][today]={homework:false,dictation:false,recite:false,speaking:false};
+  const ci=appData.checkins[name][today];
+  const cfgs=[
+    {key:'homework',icon:'📝',label:'作业'},
+    {key:'dictation',icon:'👂',label:'听写'},
+    {key:'recite',icon:'📖',label:'背诵'},
+    {key:'speaking',icon:'🗣️',label:'口语'}
+  ];
+  const dc=cfgs.filter(c=>ci[c.key]).length;
+
+  area.innerHTML=`<div style="background:#fff;border-radius:16px;padding:18px;box-shadow:0 4px 16px rgba(0,0,0,.08);margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <b style="font-size:16px">👤 ${name} · 今日打卡</b>
+      <span style="font-size:13px;color:#888">${dc}/4</span>
+    </div>
+    ${cfgs.map(c=>`<div class="checkin-row">
+      <span class="ci-icon">${c.icon}</span>
+      <span class="ci-name">${c.label}</span>
+      <span class="ci-status">${ci[c.key]?'✅ 已完成':'⏳ 待完成'}</span>
+      <button class="check-btn ${ci[c.key]?'done':''}" onclick="teacherToggleCheckin('${name}','${c.key}')">${ci[c.key]?'✅':'○'}</button>
+    </div>`).join('')}
+    <button class="btn-sm outline" style="margin-top:12px;width:100%" onclick="document.getElementById('checkinDetailArea').innerHTML='';renderTeacherStudents(document.getElementById('teacherMain'))">收起</button>
+  </div>`;
+}
+
+async function teacherToggleCheckin(name, key){
+  const today=getToday();
+  if(!appData.checkins[name])appData.checkins[name]={};
+  if(!appData.checkins[name][today])appData.checkins[name][today]={homework:false,dictation:false,recite:false,speaking:false};
+  const ci=appData.checkins[name][today];
+  ci[key]=!ci[key];
+
+  // If all done, update streak
+  const allDone=Object.values(ci).every(v=>v===true);
+  if(allDone) updateStudentStreak(name);
+
+  saveLocalData();
+  if(hasToken()){
+    showLoading('同步中...');
+    try{await saveData(`教师 ${currentUser.username} 为 ${name} 打卡 ${key}`);updateSyncStatus(true);}catch(e){updateSyncStatus(false);}
+    hideLoading();
+  }
+  if(allDone){setTimeout(()=>spawnConfetti(),100);setTimeout(()=>showToast('🎉 '+name+' 今日全部完成！'),800);}
+  showStudentCheckin(name);
+  // Also refresh the main list in background
+  setTimeout(()=>{if(document.getElementById('checkinDetailArea').innerHTML==='')renderTeacherStudents(document.getElementById('teacherMain'));},500);
+}
+
+function updateStudentStreak(name){
+  const today=getToday();
+  if(!appData.streaks[name])appData.streaks[name]={streak:0,flowers:0,lastCheckinDate:null};
+  const s=appData.streaks[name];
+  const y=new Date();y.setDate(y.getDate()-1);const ys=y.toISOString().split('T')[0];
+  if(s.lastCheckinDate===ys) s.streak+=1;
+  else if(s.lastCheckinDate===today) return;
+  else s.streak=1;
+  s.lastCheckinDate=today;
+  if(s.streak>0&&s.streak%5===0){s.flowers+=1;saveLocalData();setTimeout(()=>showToast('🌹 '+name+' 连续打卡 5 天！获得 1 朵小红花！'),1500);}
+}
+
+// ===== TEACHER: Tasks =====
+function renderTeacherTasks(main){
   const students=Object.entries(appData.users).filter(([,v])=>v.role==='student').map(([n])=>n);
   const today=getToday();
-
-  // Determine which tasks to load based on selected student
   let tasks={};
-  const st=appData.studentTasks||{};
   if(teacherTaskStudent==='__default__'){
     tasks=appData.dailyTasks[today]||{};
   }else{
-    tasks=(st[teacherTaskStudent]||{})[today]||{};
+    tasks=((appData.studentTasks||{})[teacherTaskStudent]||{})[today]||{};
   }
-
-  el.innerHTML=`
+  main.innerHTML=`
     <div class="task-editor">
       <div style="background:#fffbe6;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#996;line-height:1.5">
-        💡 <b>默认作业</b>适用于所有学生。选择具体学生可为其单独定制作业，未定制的学生将使用默认作业。
+        💡 <b>默认作业</b>适用于所有学生。选择具体学生可为其单独定制，未定制则使用默认。
       </div>
       <div class="row">
         <select id="taskStudent" onchange="changeTaskStudent()">
-          <option value="__default__" ${teacherTaskStudent==='__default__'?'selected':''}>📋 默认作业（所有学生）</option>
+          <option value="__default__" ${teacherTaskStudent==='__default__'?'selected':''}>📋 默认（所有学生）</option>
           ${students.map(s=>`<option value="${s}" ${teacherTaskStudent===s?'selected':''}>👤 ${s}</option>`).join('')}
         </select>
       </div>
@@ -544,8 +631,7 @@ function loadTaskForDate(){
   if(teacherTaskStudent==='__default__'){
     tasks=appData.dailyTasks[date]||{};
   }else{
-    const st=appData.studentTasks||{};
-    tasks=(st[teacherTaskStudent]||{})[date]||{};
+    tasks=((appData.studentTasks||{})[teacherTaskStudent]||{})[date]||{};
   }
   document.getElementById('editHomework').value=tasks.homework||getDefaultTask('homework',date);
   document.getElementById('editDictation').value=tasks.dictation||getDefaultTask('dictation',date);
@@ -561,7 +647,6 @@ async function saveTeacherTasks(){
     recite:document.getElementById('editRecite').value.trim(),
     speaking:document.getElementById('editSpeaking').value.trim()
   };
-
   if(teacherTaskStudent==='__default__'){
     if(!appData.dailyTasks[date])appData.dailyTasks[date]={};
     Object.assign(appData.dailyTasks[date],tasks);
@@ -571,28 +656,28 @@ async function saveTeacherTasks(){
     if(!appData.studentTasks[teacherTaskStudent][date])appData.studentTasks[teacherTaskStudent][date]={};
     Object.assign(appData.studentTasks[teacherTaskStudent][date],tasks);
   }
-
   saveLocalData();
-  const studentLabel=teacherTaskStudent==='__default__'?'默认':'学生 '+teacherTaskStudent;
+  const label=teacherTaskStudent==='__default__'?'默认':'学生 '+teacherTaskStudent;
   if(hasToken()){
     showLoading('同步中...');
-    try{await saveData(`编辑 ${date} ${studentLabel} 作业`);updateSyncStatus(true);}catch(e){updateSyncStatus(false);}
+    try{await saveData(`编辑 ${date} ${label} 作业`);updateSyncStatus(true);}catch(e){updateSyncStatus(false);}
     hideLoading();
   }
-  showToast(`✅ ${studentLabel} 的 ${date} 作业已保存`+(hasToken()?'并同步':'（本地）'));
+  showToast(`✅ ${label} 的 ${date} 作业已保存`+(hasToken()?'并同步':'（本地）'));
 }
 
-function renderTeacherSettings(){
-  const el=document.getElementById('teacherTabSettings');
+// ===== TEACHER: Settings =====
+function renderTeacherSettings(main){
   const users=Object.entries(appData.users);
   const token=getToken();
+  let ts=token?`<div class="settings-card"><h4>🔑 GitHub Token</h4><div style="display:flex;align-items:center;gap:10px"><span style="color:#009246;font-weight:600;">✅ 已配置</span><span style="font-size:11px;color:#888;">${token.substring(0,8)}...</span><button class="btn-sm outline" onclick="clearToken()">更换</button></div><div class="hint">Token 仅保存在浏览器中，不会上传。</div></div>`
+  :`<div class="settings-card" style="border:2px solid #ff9800;"><h4>⚠️ 请配置 GitHub Token</h4><div class="hint" style="margin-bottom:10px;">数据同步需要 GitHub Personal Access Token。<br><a href="https://github.com/settings/tokens" target="_blank" style="color:#009246;">点击生成 Token</a> → 选 <b>Generate new token (classic)</b> → 勾选 <b>repo</b> → 粘贴到下方。</div><div class="row"><input type="password" id="tokenInput" placeholder="ghp_..." style="flex:1"><button class="btn-sm primary" onclick="saveToken()">保存</button></div><div class="hint">不配置 Token 也可以使用，但数据只保存在本地。</div></div>`;
 
-  let ts=token?`<div class="settings-card"><h4>🔑 GitHub Token</h4><div style="display:flex;align-items:center;gap:10px"><span style="color:#009246;font-weight:600;">✅ 已配置</span><span style="font-size:11px;color:#888;">${token.substring(0,8)}...</span><button class="btn-sm outline" onclick="clearToken()">更换</button></div><div class="hint">Token 仅保存在你的浏览器中，不会上传。</div></div>`
-  :`<div class="settings-card" style="border:2px solid #ff9800;"><h4>⚠️ 请配置 GitHub Token</h4><div class="hint" style="margin-bottom:10px;">数据同步需要 GitHub Personal Access Token。<br><a href="https://github.com/settings/tokens" target="_blank" style="color:#009246;">点击生成 Token</a> → 选 <b>Generate new token (classic)</b> → 勾选 <b>repo</b> → 粘贴到下方。</div><div class="row"><input type="password" id="tokenInput" placeholder="ghp_..." style="flex:1"><button class="btn-sm primary" onclick="saveToken()">保存</button></div><div class="hint">不配置 Token 也可以使用，但数据只保存在本地浏览器。</div></div>`;
-
-  el.innerHTML=ts+`
+  main.innerHTML=ts+`
     <div class="settings-card"><h4>➕ 添加教师账号</h4><div class="row"><input type="text" id="newTeacherUser" placeholder="教师用户名" style="flex:1" autocapitalize="none"><input type="password" id="newTeacherPass" placeholder="密码" style="flex:1"><button class="btn-sm primary" onclick="addTeacher()">添加</button></div></div>
-    <div class="settings-card"><h4>👤 所有用户</h4>${users.map(([name,info])=>`<div class="user-list-item"><div><b>${name}</b> <span class="role-tag ${info.role}">${info.role==='teacher'?'教师':'学生'}</span></div>${name!=='Antonio'?`<button class="btn-sm danger" onclick="deleteUser('${name}')">删除</button>`:'<span style="font-size:11px;color:#999">主管理员</span>'}</div>`).join('')}</div>
+    <div class="settings-card"><h4>👤 所有用户</h4>${users.map(([name,info])=>`<div class="user-list-item"><div><b>${name}</b> <span class="role-tag ${info.role}">${info.role==='teacher'?'教师':'学生'}</span></div>${name!=='toni'?`<button class="btn-sm danger" onclick="deleteUser('${name}')">删除</button>`:'<span style="font-size:11px;color:#999">主管理员</span>'}</div>`).join('')}</div>
+    <button class="logout-danger" onclick="doLogout()">🚪 退出账号</button>
+    <div class="footer">Buono studio! 🇮🇹</div>
   `;
   updateSyncStatus();
 }
@@ -607,10 +692,10 @@ async function saveToken(){
     try{await saveData('初始化数据');updateSyncStatus(true);showToast('✅ Token 配置成功！');}
     catch(e2){setToken('');showToast('❌ Token 无效，请检查');updateSyncStatus(false);}
   }
-  hideLoading();renderTeacherSettings();
+  hideLoading();renderTeacherSettings(document.getElementById('teacherMain'));
 }
 
-function clearToken(){if(confirm('确定移除 Token？')){setToken('');updateSyncStatus();renderTeacherSettings();}}
+function clearToken(){if(confirm('确定移除 Token？')){setToken('');updateSyncStatus();renderTeacherSettings(document.getElementById('teacherMain'));}}
 
 async function addTeacher(){
   const u=document.getElementById('newTeacherUser').value.trim();
@@ -620,7 +705,7 @@ async function addTeacher(){
   if(appData.users[u]){showToast('用户名已存在');return;}
   appData.users[u]={password:p,role:'teacher'};saveLocalData();
   if(hasToken()){showLoading('同步中...');try{await saveData('添加教师:'+u);updateSyncStatus(true);}catch(e){updateSyncStatus(false);}hideLoading();}
-  showToast('✅ 教师账号已添加');renderTeacherSettings();
+  showToast('✅ 教师账号已添加');renderTeacherSettings(document.getElementById('teacherMain'));
 }
 
 async function deleteUser(name){
@@ -629,94 +714,140 @@ async function deleteUser(name){
   if(appData.studentTasks)delete appData.studentTasks[name];
   saveLocalData();
   if(hasToken()){showLoading('同步中...');try{await saveData('删除用户:'+name);updateSyncStatus(true);}catch(e){updateSyncStatus(false);}hideLoading();}
-  showToast('✅ 已删除');renderTeacherSettings();
+  showToast('✅ 已删除');renderTeacherSettings(document.getElementById('teacherMain'));
 }
 
 // ===== STUDENT =====
 function showStudentPage(){
   showPage('studentPage');
   document.getElementById('studentNameTag').textContent=currentUser.username;
-  refreshStudentUI();
+  switchStudentTab('tasks');
 }
 
-function refreshStudentUI(){
-  renderStudentTasks();
-  updateStudentStats();
-  renderFlowers();
-  renderHistory();
+function switchStudentTab(tab){
+  document.querySelectorAll('#studentNav .nav-item').forEach(b=>b.classList.remove('active'));
+  const map={tasks:0,podium:1,chat:2,settings:3};
+  document.querySelectorAll('#studentNav .nav-item')[map[tab]].classList.add('active');
+  const main=document.getElementById('studentMain');
+  if(tab==='tasks') renderStudentTasks(main);
+  else if(tab==='podium'){renderStudentPodium(main);}
+  else if(tab==='chat'){renderChat(main);startChatPoll();}
+  else if(tab==='settings'){if(chatTimer){clearInterval(chatTimer);chatTimer=null;}renderStudentSettings(main);}
 }
 
+// ===== STUDENT: Tasks (read-only) =====
+function renderStudentTasks(main){
+  const today=getToday();
+  const cfgs=[
+    {key:'homework',icon:'📝',name:'作业 · Compiti',cls:'hw'},
+    {key:'dictation',icon:'👂',name:'听写 · Dettato',cls:'dt'},
+    {key:'recite',icon:'📖',name:'背诵 · Recitazione',cls:'rc'},
+    {key:'speaking',icon:'🗣️',name:'口语 · Conversazione',cls:'sp'}
+  ];
+
+  main.innerHTML=`
+    <div class="section-title">📅 ${formatDate(today)}</div>
+    ${cfgs.map(c=>{
+      const content=getTaskForStudent(currentUser.username,today,c.key);
+      return`<div class="task-card"><div class="task-icon ${c.cls}">${c.icon}</div><div class="task-info"><div class="task-name">${c.name}</div><div class="task-content">${content}</div></div></div>`;
+    }).join('')}
+    <div style="text-align:center;color:#bbb;font-size:12px;margin-top:12px">💡 打卡由教师完成，请完成作业后联系老师</div>
+    <div class="footer">Buono studio! 🇮🇹</div>
+  `;
+}
+
+// ===== STUDENT: Podium =====
+function renderStudentPodium(main){
+  main.innerHTML=renderPodium();
+  // Also show own stats
+  const s=appData.streaks[currentUser.username]||{streak:0,flowers:0};
+  main.innerHTML+=`<div class="stats-row" style="margin-top:16px">
+    <div class="stat-card"><div class="icon">🔥</div><div class="number" style="color:#ce2b37">${s.streak||0}</div><div class="label">我的连续打卡</div></div>
+    <div class="stat-card flower"><div class="icon">🌹</div><div class="number" style="color:#e74c3c">${s.flowers||0}</div><div class="label">我的小红花</div></div>
+  </div>`;
+}
+
+// ===== STUDENT: Settings =====
+function renderStudentSettings(main){
+  main.innerHTML=`
+    <div class="settings-card">
+      <h4>👤 我的账号</h4>
+      <div class="user-list-item"><div><b>${currentUser.username}</b> <span class="role-tag student">学生</span></div></div>
+      <div class="hint">如需修改密码，请联系教师。</div>
+    </div>
+    <button class="logout-danger" onclick="doLogout()">🚪 退出账号</button>
+    <div class="footer">Buono studio! 🇮🇹</div>
+  `;
+}
+
+// ===== CHAT (shared) =====
+function renderChat(main){
+  main.innerHTML=`
+    <div class="chat-area">
+      <div class="chat-refresh"><button onclick="refreshChat()">🔄 刷新消息</button></div>
+      <div class="chat-messages" id="chatMessages"><div class="empty-state" style="padding:20px"><div class="icon">💬</div>暂无消息，来打个招呼吧！</div></div>
+      <div class="chat-input-row">
+        <input type="text" id="chatInput" placeholder="输入消息..." maxlength="500" onkeydown="if(event.key==='Enter')sendChat()">
+        <button onclick="sendChat()">➤</button>
+      </div>
+    </div>
+    <div style="text-align:center;color:#ccc;font-size:10px;margin-top:6px">群组聊天 · 所有师生可见 · 禁止私聊</div>
+  `;
+  renderChatMessages();
+}
+
+function renderChatMessages(){
+  const el=document.getElementById('chatMessages');
+  if(!el) return;
+  const msgs=appData.chatMessages||[];
+  if(msgs.length===0){el.innerHTML='<div class="empty-state" style="padding:20px"><div class="icon">💬</div>暂无消息，来打个招呼吧！</div>';return;}
+  el.innerHTML=msgs.slice(-100).map(m=>{
+    const isMine=m.username===currentUser.username;
+    const t=new Date(m.timestamp);const ts=t.getHours().toString().padStart(2,'0')+':'+t.getMinutes().toString().padStart(2,'0');
+    return`<div class="chat-msg ${isMine?'mine':''}">
+      <div class="cm-header"><span class="cm-name">${m.username}</span><span class="cm-role ${m.role}">${m.role==='teacher'?'教师':'学生'}</span><span class="cm-time">${ts}</span></div>
+      <div class="cm-body">${escapeHtml(m.message)}</div>
+    </div>`;
+  }).join('');
+  el.scrollTop=el.scrollHeight;
+}
+
+function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+async function sendChat(){
+  const input=document.getElementById('chatInput');
+  const msg=input.value.trim();
+  if(!msg) return;
+  input.value='';
+  if(!appData.chatMessages) appData.chatMessages=[];
+  appData.chatMessages.push({username:currentUser.username,role:currentUser.role,message:msg,timestamp:new Date().toISOString()});
+  // Trim old messages
+  if(appData.chatMessages.length>CHAT_MAX) appData.chatMessages=appData.chatMessages.slice(-CHAT_MAX);
+  saveLocalData();
+  renderChatMessages();
+  if(hasToken()){
+    try{await saveData('聊天:'+currentUser.username);}catch(e){}
+  }
+}
+
+async function refreshChat(){
+  if(hasToken()){
+    try{await fetchData();if(!appData.chatMessages)appData.chatMessages=[];updateSyncStatus(true);}catch(e){updateSyncStatus(false);}
+  }
+  renderChatMessages();
+}
+
+function startChatPoll(){
+  if(chatTimer) clearInterval(chatTimer);
+  if(!hasToken()) return;
+  chatTimer=setInterval(async ()=>{
+    try{await fetchData();if(!appData.chatMessages)appData.chatMessages=[];renderChatMessages();updateSyncStatus(true);}catch(e){}
+  },5000);
+}
+
+// ===== UTILS =====
 function getToday(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function formatDate(ds){const d=new Date(ds+'T00:00:00');return`${d.getMonth()+1}月${d.getDate()}日 周${['日','一','二','三','四','五','六'][d.getDay()]}`;}
-
-function renderStudentTasks(){
-  const today=getToday();
-  if(!appData.checkins[currentUser.username])appData.checkins[currentUser.username]={};
-  if(!appData.checkins[currentUser.username][today])appData.checkins[currentUser.username][today]={homework:false,dictation:false,recite:false,speaking:false};
-  const ci=appData.checkins[currentUser.username][today];
-
-  const cfgs=[{key:'homework',icon:'📝',name:'作业 · Compiti',cls:'hw'},{key:'dictation',icon:'👂',name:'听写 · Dettato',cls:'dt'},{key:'recite',icon:'📖',name:'背诵 · Recitazione',cls:'rc'},{key:'speaking',icon:'🗣️',name:'口语 · Conversazione',cls:'sp'}];
-
-  document.getElementById('taskList').innerHTML=cfgs.map(c=>{
-    const done=ci[c.key];
-    const content=getTaskForStudent(currentUser.username,today,c.key);
-    return`<div class="task-card ${done?'checked':''}"><div class="task-icon ${c.cls}">${c.icon}</div><div class="task-info"><div class="task-name">${c.name}</div><div class="task-content">${content}</div></div><button class="check-btn ${done?'done':''}" onclick="toggleStudentTask('${c.key}')">${done?'✅':'○'}</button></div>`;
-  }).join('');
-}
-
-async function toggleStudentTask(key){
-  const today=getToday();
-  const ci=appData.checkins[currentUser.username][today];
-  if(ci[key])return;
-  ci[key]=true;
-  const allDone=Object.values(ci).every(v=>v===true);
-  if(allDone)updateStreak();
-  saveLocalData();
-  if(hasToken()){showLoading('同步中...');try{await saveData(`${currentUser.username} 打卡 ${key}`);}catch(e){}hideLoading();}
-  showToast(`✅ ${{homework:'作业',dictation:'听写',recite:'背诵',speaking:'口语'}[key]} 打卡成功！`);
-  if(allDone){setTimeout(()=>spawnConfetti(),100);setTimeout(()=>showToast('🎉 今日全部完成！太棒了！'),800);}
-  refreshStudentUI();
-}
-
-function updateStreak(){
-  const today=getToday();
-  if(!appData.streaks[currentUser.username])appData.streaks[currentUser.username]={streak:0,flowers:0,lastCheckinDate:null};
-  const s=appData.streaks[currentUser.username];
-  const y=new Date();y.setDate(y.getDate()-1);const ys=y.toISOString().split('T')[0];
-  if(s.lastCheckinDate===ys)s.streak+=1;
-  else if(s.lastCheckinDate===today)return;
-  else s.streak=1;
-  s.lastCheckinDate=today;
-  if(s.streak>0&&s.streak%5===0){s.flowers+=1;saveLocalData();setTimeout(()=>showToast('🌹 连续打卡 5 天！获得 1 朵小红花！'),1500);}
-}
-
-function updateStudentStats(){
-  const s=appData.streaks[currentUser.username]||{streak:0,flowers:0};
-  document.getElementById('streakCount').textContent=s.streak||0;
-  document.getElementById('flowerCount').textContent=s.flowers||0;
-  document.getElementById('todayDate').textContent=formatDate(getToday());
-  const today=getToday();
-  const ci=(appData.checkins[currentUser.username]||{})[today]||{};
-  const dc=Object.values(ci).filter(v=>v===true).length;
-  document.getElementById('progressText').textContent=`${dc}/4`;
-  document.getElementById('progressFill').style.width=`${(dc/4)*100}%`;
-}
-
-function renderFlowers(){
-  const s=appData.streaks[currentUser.username]||{streak:0,flowers:0};
-  const row=document.getElementById('flowerRow');
-  const msg=document.getElementById('flowerMsg');
-  if(s.flowers===0){row.innerHTML='<span style="color:#ccc;font-size:28px;">🌹</span><span style="color:#ddd;font-size:28px;">🌹</span>';msg.textContent='还没有小红花，加油连续打卡 5 天吧！💪';}
-  else{row.innerHTML=Array(Math.min(s.flowers,20)).fill('<span class="flower">🌹</span>').join('');const nm=(Math.floor(s.streak/5)+1)*5;msg.textContent=`已获 ${s.flowers} 朵 · 再连续 ${nm-s.streak} 天得下一朵！🎯`;}
-}
-
-function renderHistory(){
-  const el=document.getElementById('historyList');
-  const cis=appData.checkins[currentUser.username]||{};
-  const dates=Object.keys(cis).sort().reverse().slice(0,14);
-  if(dates.length===0){el.innerHTML='<div style="text-align:center;color:#bbb;padding:20px;font-size:13px;">还没有打卡记录，今天开始吧！💪</div>';return;}
-  el.innerHTML=dates.map(date=>{const r=cis[date];const ad=Object.values(r).every(v=>v===true);const dc=Object.values(r).filter(v=>v===true).length;let bd='';if(r.homework)bd+='<span class="badge hw">📝作业</span>';if(r.dictation)bd+='<span class="badge dt">👂听写</span>';if(r.recite)bd+='<span class="badge rc">📖背诵</span>';if(r.speaking)bd+='<span class="badge sp">🗣️口语</span>';return`<div class="history-item" style="${date===getToday()?'border-left:3px solid #009246;':''}"><div><b>${formatDate(date)}</b> ${date===getToday()?'🟢':''} ${ad?'🌟':''}<div class="date">${dc}/4</div></div><div style="display:flex;gap:4px;flex-wrap:wrap">${bd||'<span style="color:#ccc;font-size:11px;">未打卡</span>'}</div></div>`;}).join('');
-}
 
 // ===== CONFETTI =====
 function spawnConfetti(){const c=document.getElementById('confettiContainer');const em=['🎉','🌟','✨','🇮🇹','🍕','🎊','💚','🤍','❤️','🌹','⭐','🎈'];for(let i=0;i<30;i++){const p=document.createElement('span');p.className='confetti-piece';p.textContent=em[Math.floor(Math.random()*em.length)];p.style.left=Math.random()*100+'%';p.style.animationDuration=(Math.random()*2+2)+'s';p.style.animationDelay=Math.random()*.5+'s';c.appendChild(p);setTimeout(()=>p.remove(),3500);}}
@@ -729,7 +860,7 @@ window.addEventListener('appinstalled',()=>{deferredPrompt=null;document.querySe
 
 // ===== SERVICE WORKER =====
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('/italiano-checkin/sw.js').then(()=>console.log('SW registered')).catch(()=>{});
+  navigator.serviceWorker.register('/italiano-checkin/sw.js').then(()=>{}).catch(()=>{});
 }
 
 // ===== KEYBOARD =====
