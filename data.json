@@ -1,0 +1,12 @@
+{
+  "users": {
+    "Antonio": {
+      "password": "lanbeier0813",
+      "role": "teacher"
+    }
+  },
+  "dailyTasks": {},
+  "studentTasks": {},
+  "checkins": {},
+  "streaks": {}
+}
