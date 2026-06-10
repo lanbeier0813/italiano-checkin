@@ -161,6 +161,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Helv
 .sync-status.ok{color:#009246}
 .logout-danger{width:100%;padding:14px;background:#fff;color:#ce2b37;border:2px solid #ce2b37;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px;-webkit-appearance:none}
 .logout-danger:active{background:#fef2f2}
+.submenu-toggle{background:#fff;border-radius:14px;padding:16px 18px;box-shadow:0 2px 10px rgba(0,0,0,.05);margin-bottom:14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:700;transition:all .15s}
+.submenu-toggle:active{background:#f5f5f5}
+.submenu-toggle .arrow{font-size:12px;color:#bbb;transition:transform .2s}
+.submenu-toggle.open .arrow{transform:rotate(90deg)}
+.submenu-body{display:none;background:#fafafa;border-radius:0 0 14px 14px;padding:0 18px 16px;margin-top:-14px;margin-bottom:14px}
+.submenu-body.show{display:block}
+.submenu-body .settings-card{box-shadow:none;margin-bottom:10px;background:#fff}
 </style>
 </head>
 <body>
@@ -298,7 +305,9 @@ const I18N = {
     settingsAddTeacher:'➕ 添加教师账号', settingsTeacherUser:'教师用户名', settingsTeacherPass:'密码', settingsAdd:'添加',
     settingsUsers:'👤 所有用户', settingsMainAdmin:'主管理员', settingsDelete:'删除', settingsTeacher:'教师', settingsStudent:'学生',
     settingsLogout:'🚪 退出账号', settingsMyAccount:'👤 我的账号', settingsContactTeacher:'如需修改密码，请联系教师。',
-    settingsLanguage:'🌐 界面语言',
+    settingsLanguage:'🌐 界面语言', settingsAccount:'👤 账号', settingsChangePassword:'🔒 更改密码',
+    settingsOldPassword:'当前密码', settingsNewPassword:'新密码', settingsNewPassword2:'确认新密码',
+    settingsChangePwdBtn:'修改密码', settingsPwdChanged:'✅ 密码已修改', settingsPwdWrong:'当前密码错误',
     chatRefresh:'🔄 刷新消息', chatPlaceholder:'输入消息...', chatEmpty:'暂无消息，来打个招呼吧！', chatGroupHint:'群组聊天 · 所有师生可见 · 禁止私聊',
     loading:'加载中...', syncing:'同步中...', syncOK:'✅ 已同步', syncFail:'⚠️ 同步失败，使用本地缓存', syncNoToken:'⚙️ 请在设置中配置 GitHub Token',
     taskReadonlyHint:'💡 打卡由教师完成，请完成作业后联系老师',
@@ -341,7 +350,9 @@ const I18N = {
     settingsAddTeacher:'➕ Add Teacher', settingsTeacherUser:'Username', settingsTeacherPass:'Password', settingsAdd:'Add',
     settingsUsers:'👤 All Users', settingsMainAdmin:'Main Admin', settingsDelete:'Delete', settingsTeacher:'Teacher', settingsStudent:'Student',
     settingsLogout:'🚪 Logout', settingsMyAccount:'👤 My Account', settingsContactTeacher:'Contact your teacher to change password.',
-    settingsLanguage:'🌐 Language',
+    settingsLanguage:'🌐 Language', settingsAccount:'👤 Account', settingsChangePassword:'🔒 Change Password',
+    settingsOldPassword:'Current Password', settingsNewPassword:'New Password', settingsNewPassword2:'Confirm New Password',
+    settingsChangePwdBtn:'Change Password', settingsPwdChanged:'✅ Password changed', settingsPwdWrong:'Current password is incorrect',
     chatRefresh:'🔄 Refresh', chatPlaceholder:'Type a message...', chatEmpty:'No messages yet. Say hello!', chatGroupHint:'Group chat · Visible to all · No private messages',
     loading:'Loading...', syncing:'Syncing...', syncOK:'✅ Synced', syncFail:'⚠️ Sync failed, using local cache', syncNoToken:'⚙️ Configure GitHub Token in Settings',
     taskReadonlyHint:'💡 Check-in is done by your teacher. Contact them after completing tasks.',
@@ -384,7 +395,9 @@ const I18N = {
     settingsAddTeacher:'➕ Aggiungi insegnante', settingsTeacherUser:'Nome utente', settingsTeacherPass:'Password', settingsAdd:'Aggiungi',
     settingsUsers:'👤 Tutti gli utenti', settingsMainAdmin:'Admin principale', settingsDelete:'Elimina', settingsTeacher:'Insegnante', settingsStudent:'Studente',
     settingsLogout:'🚪 Esci', settingsMyAccount:'👤 Il mio account', settingsContactTeacher:'Contatta l\'insegnante per cambiare password.',
-    settingsLanguage:'🌐 Lingua',
+    settingsLanguage:'🌐 Lingua', settingsAccount:'👤 Account', settingsChangePassword:'🔒 Cambia password',
+    settingsOldPassword:'Password attuale', settingsNewPassword:'Nuova password', settingsNewPassword2:'Conferma nuova password',
+    settingsChangePwdBtn:'Cambia password', settingsPwdChanged:'✅ Password cambiata', settingsPwdWrong:'Password attuale errata',
     chatRefresh:'🔄 Aggiorna', chatPlaceholder:'Scrivi un messaggio...', chatEmpty:'Nessun messaggio. Di\' ciao!', chatGroupHint:'Chat di gruppo · Visibile a tutti · No messaggi privati',
     loading:'Caricamento...', syncing:'Sincronizzazione...', syncOK:'✅ Sincronizzato', syncFail:'⚠️ Sincronizzazione fallita, uso cache locale', syncNoToken:'⚙️ Configura GitHub Token nelle Impostazioni',
     taskReadonlyHint:'💡 Il check-in è fatto dall\'insegnante. Contattalo dopo aver completato i compiti.',
@@ -558,6 +571,28 @@ function doLogout(){
   showPage('loginPage');document.getElementById('loginUser').value='';document.getElementById('loginPass').value='';document.getElementById('loginError').textContent='';
 }
 
+function toggleSubmenu(el,id){
+  el.classList.toggle('open');
+  document.getElementById(id).classList.toggle('show');
+}
+
+function changeOwnPassword(){
+  const oldP=document.getElementById('oldPassword').value;
+  const newP=document.getElementById('newPassword').value;
+  const newP2=document.getElementById('newPassword2').value;
+  if(!oldP||!newP){showToast(_('errorFill'));return;}
+  if(newP.length<4){showToast(_('errorPassShort'));return;}
+  if(newP!==newP2){showToast(_('errorPassMismatch'));return;}
+  if(appData.users[currentUser.username].password!==oldP){showToast(_('settingsPwdWrong'));return;}
+  appData.users[currentUser.username].password=newP;
+  saveLocalData();
+  if(hasToken()){showLoading(_('syncing'));saveData('修改密码:'+currentUser.username).then(()=>updateSyncStatus(true)).catch(()=>updateSyncStatus(false)).finally(hideLoading);}
+  else{showToast(_('settingsPwdChanged'));}
+  document.getElementById('oldPassword').value='';
+  document.getElementById('newPassword').value='';
+  document.getElementById('newPassword2').value='';
+}
+
 // ===== TEACHER =====
 function showTeacherPage(){
   showPage('teacherPage');updateAllUIText();
@@ -707,8 +742,17 @@ function renderTeacherSettings(main){
         <option value="it" ${lang==='it'?'selected':''}>🇮🇹 Italiano</option>
       </select>
     </div>
-    <div class="settings-card"><h4>${_('settingsAddTeacher')}</h4><div class="row"><input type="text" id="newTeacherUser" placeholder="${_('settingsTeacherUser')}" style="flex:1" autocapitalize="none"><input type="password" id="newTeacherPass" placeholder="${_('settingsTeacherPass')}" style="flex:1"><button class="btn-sm primary" onclick="addTeacher()">${_('settingsAdd')}</button></div></div>
-    <div class="settings-card"><h4>${_('settingsUsers')}</h4>${users.map(([name,info])=>`<div class="user-list-item"><div><b>${name}</b> <span class="role-tag ${info.role}">${info.role==='teacher'?_('settingsTeacher'):_('settingsStudent')}</span></div>${name!=='toni'?`<button class="btn-sm danger" onclick="deleteUser('${name}')">${_('settingsDelete')}</button>`:'<span style="font-size:11px;color:#999">'+_('settingsMainAdmin')+'</span>'}</div>`).join('')}</div>
+    <div class="submenu-toggle" onclick="toggleSubmenu(this,'accountSub')"><span>${_('settingsAccount')}</span><span class="arrow">▶</span></div>
+    <div class="submenu-body" id="accountSub">
+      <div class="settings-card"><h4>${_('settingsChangePassword')}</h4>
+        <input type="password" id="oldPassword" placeholder="${_('settingsOldPassword')}">
+        <input type="password" id="newPassword" placeholder="${_('settingsNewPassword')}">
+        <input type="password" id="newPassword2" placeholder="${_('settingsNewPassword2')}">
+        <button class="btn-sm primary" style="width:100%" onclick="changeOwnPassword()">${_('settingsChangePwdBtn')}</button>
+      </div>
+      <div class="settings-card"><h4>${_('settingsAddTeacher')}</h4><div class="row"><input type="text" id="newTeacherUser" placeholder="${_('settingsTeacherUser')}" style="flex:1" autocapitalize="none"><input type="password" id="newTeacherPass" placeholder="${_('settingsTeacherPass')}" style="flex:1"><button class="btn-sm primary" onclick="addTeacher()">${_('settingsAdd')}</button></div></div>
+      <div class="settings-card"><h4>${_('settingsUsers')}</h4>${users.map(([name,info])=>`<div class="user-list-item"><div><b>${name}</b> <span class="role-tag ${info.role}">${info.role==='teacher'?_('settingsTeacher'):_('settingsStudent')}</span></div>${name!=='toni'?`<button class="btn-sm danger" onclick="deleteUser('${name}')">${_('settingsDelete')}</button>`:'<span style="font-size:11px;color:#999">'+_('settingsMainAdmin')+'</span>'}</div>`).join('')}</div>
+    </div>
     <button class="logout-danger" onclick="doLogout()">${_('settingsLogout')}</button>
     <div class="footer">${_('footer')}</div>
   `;
@@ -784,7 +828,16 @@ function renderStudentSettings(main){
       <option value="en" ${lang==='en'?'selected':''}>🇬🇧 English</option>
       <option value="it" ${lang==='it'?'selected':''}>🇮🇹 Italiano</option>
     </select></div>
-    <div class="settings-card"><h4>${_('settingsMyAccount')}</h4><div class="user-list-item"><div><b>${currentUser.username}</b> <span class="role-tag student">${_('settingsStudent')}</span></div></div><div class="hint">${_('settingsContactTeacher')}</div></div>
+    <div class="submenu-toggle" onclick="toggleSubmenu(this,'studentAccountSub')"><span>${_('settingsAccount')}</span><span class="arrow">▶</span></div>
+    <div class="submenu-body" id="studentAccountSub">
+      <div class="settings-card"><h4>${_('settingsChangePassword')}</h4>
+        <input type="password" id="oldPassword" placeholder="${_('settingsOldPassword')}">
+        <input type="password" id="newPassword" placeholder="${_('settingsNewPassword')}">
+        <input type="password" id="newPassword2" placeholder="${_('settingsNewPassword2')}">
+        <button class="btn-sm primary" style="width:100%" onclick="changeOwnPassword()">${_('settingsChangePwdBtn')}</button>
+      </div>
+      <div class="settings-card"><h4>${_('settingsMyAccount')}</h4><div class="user-list-item"><div><b>${currentUser.username}</b> <span class="role-tag student">${_('settingsStudent')}</span></div></div><div class="hint">${_('settingsContactTeacher')}</div></div>
+    </div>
     <button class="logout-danger" onclick="doLogout()">${_('settingsLogout')}</button>
     <div class="footer">${_('footer')}</div>`;
 }
