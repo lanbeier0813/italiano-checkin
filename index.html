@@ -501,9 +501,7 @@ async function fetchData(){
     const text=await fetchFromUrl(url);
     if(text){
       try{
-        appData=JSON.parse(text);
-        if(!appData.chatMessages)appData.chatMessages=[];
-        if(!appData.users['toni']&&appData.users['Antonio']){appData.users['toni']=appData.users['Antonio'];delete appData.users['Antonio'];}
+        appData=normalizeData(JSON.parse(text));
         saveLocalData();
         return;
       }catch(e){}
@@ -515,14 +513,18 @@ async function fetchData(){
 
 // 直连GitHub API（有内置Token），CDN缓存延迟时使用
 async function fetchDataFromApi(){
-  const r=await fetch(getApiBase(),{headers:getApiHeaders()});
-  if(r.status===404){appData=getInitialData();await saveData('初始化');return;}
+  const remote=await fetchRemoteFile();
+  dataSha=remote.sha;
+  appData=remote.data;
+  saveLocalData();
+}
+
+async function fetchRemoteFile(){
+  const r=await fetch(getApiBase(),{headers:getApiHeaders(),cache:'no-cache'});
+  if(r.status===404)return{sha:null,data:getInitialData()};
   if(!r.ok)throw new Error('API读取失败('+r.status+')');
   const j=await r.json();dataSha=j.sha;
-  appData=JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\n/g,'')))));
-  if(!appData.chatMessages)appData.chatMessages=[];
-  if(!appData.users['toni']&&appData.users['Antonio']){appData.users['toni']=appData.users['Antonio'];delete appData.users['Antonio'];}
-  saveLocalData();
+  return{sha:j.sha,data:normalizeData(JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\n/g,''))))))};
 }
 
 const defaultTasks={
@@ -536,16 +538,49 @@ function getDefaultTask(cat,ds){let h=0;for(let i=0;i<ds.length;i++){h=((h<<5)-h
 
 function getInitialData(){return{users:{'toni':{password:'lanbeier0813',role:'teacher'}},dailyTasks:{},studentTasks:{},checkins:{},streaks:{},chatMessages:[]};}
 
+function normalizeData(data){
+  if(!data||typeof data!=='object')data=getInitialData();
+  data.users=data.users||{};
+  data.dailyTasks=data.dailyTasks||{};
+  data.studentTasks=data.studentTasks||{};
+  data.checkins=data.checkins||{};
+  data.streaks=data.streaks||{};
+  data.chatMessages=data.chatMessages||[];
+  if(!data.users['toni']&&data.users['Antonio']){data.users['toni']=data.users['Antonio'];delete data.users['Antonio'];}
+  return data;
+}
+
+function cloneData(data){return JSON.parse(JSON.stringify(normalizeData(data)));}
+
 async function saveData(msg){
-  const c=btoa(unescape(encodeURIComponent(JSON.stringify(appData,null,2))));
-  const b={message:msg,content:c};if(dataSha)b.sha=dataSha;
-  const r=await fetch(getApiBase(),{method:'PUT',headers:getApiHeaders(),body:JSON.stringify(b)});
-  if(!r.ok){if(r.status===409){await fetchDataFromApi();return saveData(msg+'(retry)');}throw new Error('保存失败('+r.status+')');}
-  const j=await r.json();dataSha=j.content.sha;
+  const pending=cloneData(appData||getInitialData());
+  let lastError=null;
+  for(let i=0;i<3;i++){
+    if(!dataSha){
+      const remote=await fetchRemoteFile();
+      dataSha=remote.sha;
+      appData=pending;
+    }
+    const c=btoa(unescape(encodeURIComponent(JSON.stringify(pending,null,2))));
+    const b={message:msg,content:c};if(dataSha)b.sha=dataSha;
+    const r=await fetch(getApiBase(),{method:'PUT',headers:getApiHeaders(),body:JSON.stringify(b)});
+    if(r.ok){
+      const j=await r.json();dataSha=j.content.sha;appData=pending;saveLocalData();return;
+    }
+    lastError=new Error('保存失败('+r.status+')');
+    if(r.status===409||r.status===422){
+      const remote=await fetchRemoteFile();
+      dataSha=remote.sha;
+      appData=pending;
+      continue;
+    }
+    throw lastError;
+  }
+  throw lastError||new Error('保存失败');
 }
 
 const LK='italiano_local_data';
-function loadLocalData(){const r=localStorage.getItem(LK);return r?JSON.parse(r):getInitialData();}
+function loadLocalData(){const r=localStorage.getItem(LK);return r?normalizeData(JSON.parse(r)):getInitialData();}
 function saveLocalData(){localStorage.setItem(LK,JSON.stringify(appData));}
 
 function getTaskForStudent(student,date,cat){
@@ -571,11 +606,12 @@ async function doLogin(){
   if(!u||!p){e.textContent=_('errorFill');return;}
   showLoading(_('loading'));
   try{
-    // 先尝试CDN拉数据
-    await fetchData();
-    // CDN缓存延迟可能没拉到最新，用户不存在时直连API再试
+    // 登录必须优先直连API，避免CDN缓存让刚注册/刚添加的账号不可见。
+    try{await fetchDataFromApi();}catch(x){await fetchData();}
+    if(!appData.users[u]){try{await fetchDataFromApi();}catch(x){}}
     if(!appData.users[u]){
-      try{await fetchDataFromApi();}catch(x){}
+      const local=loadLocalData();
+      if(local.users&&local.users[u]){appData=local;saveLocalData();}
     }
     if(!appData.users[u]){e.textContent=_('errorNotFound');hideLoading();return;}
     if(appData.users[u].password!==p){e.textContent=_('errorWrongPass');hideLoading();return;}
@@ -600,6 +636,7 @@ async function doRegister(){
     if(!appData.chatMessages)appData.chatMessages=[];
     if(appData.users[u]){e.textContent=_('errorUserExists');hideLoading();return;}
     appData.users[u]={password:p,role:'student'};
+    saveLocalData();
     try{await saveData('注册学生:'+u);showToast(_('regSuccess'));}catch(x){saveLocalData();showToast(_('regSuccessNoSync'));}
     showLogin();hideLoading();
   }catch(x){e.textContent=_('errorNetwork');hideLoading();}
