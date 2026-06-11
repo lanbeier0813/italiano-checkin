@@ -1,1 +1,26 @@
-{"users":{"toni":{"password":"123456","role":"teacher"},"a":{"password":"aaaa","role":"student"}},"dailyTasks":{},"studentTasks":{},"checkins":{},"streaks":{},"chatMessages":[{"username":"toni","role":"teacher","message":"ciao","timestamp":"2026-06-10T03:39:55.194Z"},{"username":"a","role":"student","message":"ciao","timestamp":"2026-06-10T05:18:44.597Z"}]}
+{
+  "users": {
+    "toni": {
+      "password": "123456",
+      "role": "teacher"
+    }
+  },
+  "dailyTasks": {},
+  "studentTasks": {},
+  "checkins": {},
+  "streaks": {},
+  "chatMessages": [
+    {
+      "username": "toni",
+      "role": "teacher",
+      "message": "ciao",
+      "timestamp": "2026-06-10T03:39:55.194Z"
+    },
+    {
+      "username": "a",
+      "role": "student",
+      "message": "ciao",
+      "timestamp": "2026-06-10T05:18:44.597Z"
+    }
+  ]
+}
