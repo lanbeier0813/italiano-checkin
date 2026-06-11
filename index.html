@@ -495,13 +495,50 @@ async function fetchFromUrl(url){
   return null;
 }
 
+// 智能合并：远程数据与本地数据合并，保留本地独有的用户
+function mergeWithLocal(remoteData){
+  const local=loadLocalData();
+  const merged=cloneData(remoteData);
+  // 保留本地独有的用户（远程没有的 = 刚注册未同步成功的）
+  for(const [k,v] of Object.entries(local.users)){
+    if(!merged.users[k]){
+      merged.users[k]=v;
+    }
+  }
+  // 合并打卡记录：取每个用户较多的数据
+  for(const [k,v] of Object.entries(local.checkins||{})){
+    if(!merged.checkins[k]||Object.keys(v).length>Object.keys(merged.checkins[k]||{}).length){
+      merged.checkins[k]=v;
+    }
+  }
+  // 合并连续打卡：取每个用户较高的数据
+  for(const [k,v] of Object.entries(local.streaks||{})){
+    if(!merged.streaks[k]||v.streak>(merged.streaks[k]?.streak||0)){
+      merged.streaks[k]=v;
+    }
+  }
+  // 合并聊天消息：按timestamp去重合并
+  const localMsgs=local.chatMessages||[];
+  const remoteMsgs=merged.chatMessages||[];
+  const msgSet=new Set(remoteMsgs.map(m=>m.timestamp+'|'+m.username));
+  for(const m of localMsgs){
+    const key=m.timestamp+'|'+m.username;
+    if(!msgSet.has(key)){remoteMsgs.push(m);msgSet.add(key);}
+  }
+  remoteMsgs.sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
+  if(remoteMsgs.length>CHAT_MAX)remoteMsgs.splice(0,remoteMsgs.length-CHAT_MAX);
+  merged.chatMessages=remoteMsgs;
+  return merged;
+}
+
 async function fetchData(){
   // 多源尝试拉取数据（CDN优先，速度快）
   for(const url of getMirrorUrls()){
     const text=await fetchFromUrl(url);
     if(text){
       try{
-        appData=normalizeData(JSON.parse(text));
+        const remote=normalizeData(JSON.parse(text));
+        appData=mergeWithLocal(remote);
         saveLocalData();
         return;
       }catch(e){}
@@ -515,7 +552,7 @@ async function fetchData(){
 async function fetchDataFromApi(){
   const remote=await fetchRemoteFile();
   dataSha=remote.sha;
-  appData=remote.data;
+  appData=mergeWithLocal(remote.data);
   saveLocalData();
 }
 
@@ -559,7 +596,6 @@ async function saveData(msg){
     if(!dataSha){
       const remote=await fetchRemoteFile();
       dataSha=remote.sha;
-      appData=pending;
     }
     const c=btoa(unescape(encodeURIComponent(JSON.stringify(pending,null,2))));
     const b={message:msg,content:c};if(dataSha)b.sha=dataSha;
@@ -569,9 +605,39 @@ async function saveData(msg){
     }
     lastError=new Error('保存失败('+r.status+')');
     if(r.status===409||r.status===422){
+      // 冲突：先拉取最新远程数据，合并后再试
       const remote=await fetchRemoteFile();
       dataSha=remote.sha;
-      appData=pending;
+      // 将远程的新数据合并到pending中（保留本地独有的用户和打卡数据）
+      for(const [k,v] of Object.entries(remote.data.users)){
+        if(!pending.users[k])pending.users[k]=v;
+      }
+      for(const [k,v] of Object.entries(remote.data.checkins||{})){
+        if(!pending.checkins[k])pending.checkins[k]=v;
+        else{
+          // 合并每个用户不同日期的打卡记录
+          for(const [dk,dv] of Object.entries(v)){
+            if(!pending.checkins[k][dk])pending.checkins[k][dk]=dv;
+          }
+        }
+      }
+      for(const [k,v] of Object.entries(remote.data.streaks||{})){
+        if(!pending.streaks[k])pending.streaks[k]=v;
+      }
+      for(const [k,v] of Object.entries(remote.data.studentTasks||{})){
+        if(!pending.studentTasks[k])pending.studentTasks[k]=v;
+      }
+      for(const [k,v] of Object.entries(remote.data.dailyTasks||{})){
+        if(!pending.dailyTasks[k])pending.dailyTasks[k]=v;
+      }
+      // 合并聊天消息
+      const remoteMsgs=remote.data.chatMessages||[];
+      const pendingKeys=new Set((pending.chatMessages||[]).map(m=>m.timestamp+'|'+m.username));
+      for(const m of remoteMsgs){
+        if(!pendingKeys.has(m.timestamp+'|'+m.username)){pending.chatMessages.push(m);pendingKeys.add(m.timestamp+'|'+m.username);}
+      }
+      pending.chatMessages.sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
+      if(pending.chatMessages.length>CHAT_MAX)pending.chatMessages.splice(0,pending.chatMessages.length-CHAT_MAX);
       continue;
     }
     throw lastError;
@@ -606,13 +672,20 @@ async function doLogin(){
   if(!u||!p){e.textContent=_('errorFill');return;}
   showLoading(_('loading'));
   try{
-    // 登录必须优先直连API，避免CDN缓存让刚注册/刚添加的账号不可见。
-    try{await fetchDataFromApi();}catch(x){await fetchData();}
-    if(!appData.users[u]){try{await fetchDataFromApi();}catch(x){}}
-    if(!appData.users[u]){
-      const local=loadLocalData();
-      if(local.users&&local.users[u]){appData=local;saveLocalData();}
+    // 第一步：先检查本地数据（最快，且不会丢失本地注册用户）
+    const local=loadLocalData();
+    if(local.users&&local.users[u]&&local.users[u].password===p){
+      appData=local;
+      currentUser={username:u,role:local.users[u].role};
+      saveLocalData();
+      if(currentUser.role==='teacher')showTeacherPage();else showStudentPage();
+      hideLoading();
+      // 后台静默同步远程数据
+      try{await fetchDataFromApi();if(currentUser.role==='teacher')showTeacherPage();else showStudentPage();updateSyncStatus(true);}catch(x){try{await fetchData();updateSyncStatus(true);}catch(x2){updateSyncStatus(false);}}
+      return;
     }
+    // 第二步：本地没找到或密码不匹配，尝试远程数据
+    try{await fetchDataFromApi();}catch(x){await fetchData();}
     if(!appData.users[u]){e.textContent=_('errorNotFound');hideLoading();return;}
     if(appData.users[u].password!==p){e.textContent=_('errorWrongPass');hideLoading();return;}
     currentUser={username:u,role:appData.users[u].role};
@@ -636,8 +709,13 @@ async function doRegister(){
     if(!appData.chatMessages)appData.chatMessages=[];
     if(appData.users[u]){e.textContent=_('errorUserExists');hideLoading();return;}
     appData.users[u]={password:p,role:'student'};
-    saveLocalData();
-    try{await saveData('注册学生:'+u);showToast(_('regSuccess'));}catch(x){saveLocalData();showToast(_('regSuccessNoSync'));}
+    saveLocalData(); // 先确保本地保存成功，登录即可用
+    try{await saveData('注册学生:'+u);showToast(_('regSuccess'));}catch(x){
+      saveLocalData();
+      showToast(_('regSuccessNoSync'));
+      // 5秒后静默重试一次
+      setTimeout(async()=>{try{await saveData('注册学生(重试):'+u);}catch(x){}},5000);
+    }
     showLogin();hideLoading();
   }catch(x){e.textContent=_('errorNetwork');hideLoading();}
 }
@@ -664,7 +742,10 @@ function changeOwnPassword(){
   appData.users[currentUser.username].password=newP;
   saveLocalData();
   showLoading(_('syncing'));
-  saveData('修改密码:'+currentUser.username).then(()=>{updateSyncStatus(true);showToast(_('settingsPwdChanged'));}).catch(()=>{updateSyncStatus(false);showToast(_('settingsPwdChanged'));}).finally(hideLoading);
+  saveData('修改密码:'+currentUser.username).then(()=>{updateSyncStatus(true);showToast(_('settingsPwdChanged'));}).catch(()=>{
+    updateSyncStatus(false);showToast(_('settingsPwdChanged'));
+    setTimeout(async()=>{try{await saveData('修改密码(重试):'+currentUser.username);updateSyncStatus(true);}catch(e){}},5000);
+  }).finally(hideLoading);
   document.getElementById('oldPassword').value='';
   document.getElementById('newPassword').value='';
   document.getElementById('newPassword2').value='';
@@ -745,7 +826,11 @@ async function teacherToggleCheckin(name,key){
   if(allDone)updateStudentStreak(name);
   saveLocalData();
   showLoading(_('syncing'));
-  try{await saveData(currentUser.username+' checkin '+name+' '+key);updateSyncStatus(true);}catch(e){updateSyncStatus(false);}
+  try{await saveData(currentUser.username+' checkin '+name+' '+key);updateSyncStatus(true);}catch(e){
+    updateSyncStatus(false);
+    const _m=currentUser.username+' checkin '+name+' '+key;
+    setTimeout(async()=>{try{await saveData(_m+'(重试)');updateSyncStatus(true);}catch(e){}},5000);
+  }
   hideLoading();
   if(allDone){setTimeout(()=>spawnConfetti(),100);setTimeout(()=>showToast(_('allDone')),800);}
   showStudentCheckin(name);
@@ -800,7 +885,7 @@ async function saveTeacherTasks(){
   saveLocalData();
   const label=teacherTaskStudent==='__default__'?_('taskDefaultOption'):'学生 '+teacherTaskStudent;
   showLoading(_('syncing'));
-  try{await saveData('编辑 '+date+' '+label+' 作业');updateSyncStatus(true);}catch(e){updateSyncStatus(false);}
+  try{await saveData('编辑 '+date+' '+label+' 作业');updateSyncStatus(true);}catch(e){updateSyncStatus(false);setTimeout(async()=>{try{await saveData('编辑 '+date+' '+label+' 作业(重试)');updateSyncStatus(true);}catch(e){}},5000);}
   hideLoading();
   showToast('✅ '+_('taskSaved'));
 }
@@ -858,7 +943,11 @@ async function addTeacher(){
   if(appData.users[u]){showToast(_('errorUserExists'));return;}
   appData.users[u]={password:p,role:'teacher'};saveLocalData();
   showLoading(_('syncing'));
-  try{await saveData('添加教师:'+u);updateSyncStatus(true);}catch(e){updateSyncStatus(false);}
+  try{await saveData('添加教师:'+u);updateSyncStatus(true);}catch(e){
+    updateSyncStatus(false);
+    // 5秒后静默重试
+    setTimeout(async()=>{try{await saveData('添加教师(重试):'+u);updateSyncStatus(true);}catch(e){}},5000);
+  }
   hideLoading();
   showToast(_('teacherAdded'));renderTeacherSettings(document.getElementById('teacherMain'));
 }
@@ -869,7 +958,11 @@ async function deleteUser(name){
   if(appData.studentTasks)delete appData.studentTasks[name];
   saveLocalData();
   showLoading(_('syncing'));
-  try{await saveData('删除用户:'+name);updateSyncStatus(true);}catch(e){updateSyncStatus(false);}
+  try{await saveData('删除用户:'+name);updateSyncStatus(true);}catch(e){
+    updateSyncStatus(false);
+    // 5秒后静默重试
+    setTimeout(async()=>{try{await saveData('删除用户(重试):'+name);updateSyncStatus(true);}catch(e){}},5000);
+  }
   hideLoading();
   showToast(_('userDeleted'));renderTeacherSettings(document.getElementById('teacherMain'));
 }
@@ -967,7 +1060,7 @@ async function sendChat(){
   appData.chatMessages.push({username:currentUser.username,role:currentUser.role,message:msg,timestamp:new Date().toISOString()});
   if(appData.chatMessages.length>CHAT_MAX)appData.chatMessages=appData.chatMessages.slice(-CHAT_MAX);
   saveLocalData();renderChatMessages();
-  try{await saveData('聊天:'+currentUser.username);}catch(e){}
+  try{await saveData('聊天:'+currentUser.username);}catch(e){setTimeout(async()=>{try{await saveData('聊天(重试):'+currentUser.username);}catch(e){}},5000);}
 }
 
 async function refreshChat(){
@@ -997,7 +1090,7 @@ let deferredPrompt=null;
 window.addEventListener('beforeinstallprompt',(e)=>{e.preventDefault();deferredPrompt=e;document.querySelectorAll('.install-banner').forEach(b=>b.classList.add('show'));});
 function installPWA(){if(deferredPrompt){deferredPrompt.prompt();deferredPrompt.userChoice.then(r=>{if(r.outcome==='accepted'){document.querySelectorAll('.install-banner').forEach(b=>b.classList.remove('show'));}deferredPrompt=null;});}else{showToast('📲 请使用浏览器的"添加到主屏幕"功能');}}
 window.addEventListener('appinstalled',()=>{deferredPrompt=null;document.querySelectorAll('.install-banner').forEach(b=>b.classList.remove('show'));});
-if('serviceWorker' in navigator){navigator.serviceWorker.register('/italiano-checkin/sw.js').then(()=>{}).catch(()=>{});}
+if('serviceWorker' in navigator){navigator.serviceWorker.register('/italiano-checkin/sw.js').then(reg=>{reg.update();}).catch(()=>{});}
 
 document.addEventListener('keydown',e=>{if(e.key==='Enter'){if(document.getElementById('loginPage').classList.contains('active'))doLogin();if(document.getElementById('registerPage').classList.contains('active'))doRegister();}});
 
