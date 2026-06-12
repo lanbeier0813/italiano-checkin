@@ -31,6 +31,13 @@
       "role": "student",
       "message": "ciao",
       "timestamp": "2026-06-12T03:11:23.849Z"
+    },
+    {
+      "id": "mqae10fccohfcc",
+      "username": "toni",
+      "role": "teacher",
+      "message": "hello",
+      "timestamp": "2026-06-12T03:49:34.440Z"
     }
   ],
   "hiddenChatMessages": {
