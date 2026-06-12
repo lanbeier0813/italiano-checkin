@@ -26,12 +26,5 @@
     }
   },
   "streaks": {},
-  "chatMessages": [
-    {
-      "username": "a",
-      "role": "student",
-      "message": "ciao",
-      "timestamp": "2026-06-10T05:18:44.597Z"
-    }
-  ]
+  "chatMessages": []
 }
