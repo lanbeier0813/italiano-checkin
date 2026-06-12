@@ -468,13 +468,13 @@ function updateAllUIText(){
 // ===== CONFIG =====
 const REPO_OWNER='a1studio-user', REPO_NAME='italiano-checkin', DATA_PATH='data.json', TOKEN_KEY='github_token', CHAT_MAX=200;
 const BUILTIN_TOKEN='ghp_'+'BEVyv3fajDIH0AIVDrnZgMwDoGiLCu02HymD';
-let appData=null, dataSha=null, currentUser=null, teacherTaskStudent='__default__', chatTimer=null;
+let appData=null, dataSha=null, currentUser=null, teacherTaskStudent='__default__', chatTimer=null, saveLock=Promise.resolve();
 
 function getToken(){return localStorage.getItem(TOKEN_KEY)||BUILTIN_TOKEN;}
 function setToken(t){localStorage.setItem(TOKEN_KEY,t);}
 function hasToken(){return !!getToken();}
 function getApiBase(){return `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DATA_PATH}`;}
-function getApiHeaders(){return{'Authorization':`token ${getToken()}`,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'};}
+function getApiHeaders(token=getToken()){return{'Authorization':`token ${token}`,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'};}
 function getRawUrl(){return `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/${DATA_PATH}`;}
 function getMirrorUrls(){
   return [
@@ -495,50 +495,13 @@ async function fetchFromUrl(url){
   return null;
 }
 
-// 智能合并：远程数据与本地数据合并，保留本地独有的用户
-function mergeWithLocal(remoteData){
-  const local=loadLocalData();
-  const merged=cloneData(remoteData);
-  // 保留本地独有的用户（远程没有的 = 刚注册未同步成功的）
-  for(const [k,v] of Object.entries(local.users)){
-    if(!merged.users[k]){
-      merged.users[k]=v;
-    }
-  }
-  // 合并打卡记录：取每个用户较多的数据
-  for(const [k,v] of Object.entries(local.checkins||{})){
-    if(!merged.checkins[k]||Object.keys(v).length>Object.keys(merged.checkins[k]||{}).length){
-      merged.checkins[k]=v;
-    }
-  }
-  // 合并连续打卡：取每个用户较高的数据
-  for(const [k,v] of Object.entries(local.streaks||{})){
-    if(!merged.streaks[k]||v.streak>(merged.streaks[k]?.streak||0)){
-      merged.streaks[k]=v;
-    }
-  }
-  // 合并聊天消息：按timestamp去重合并
-  const localMsgs=local.chatMessages||[];
-  const remoteMsgs=merged.chatMessages||[];
-  const msgSet=new Set(remoteMsgs.map(m=>m.timestamp+'|'+m.username));
-  for(const m of localMsgs){
-    const key=m.timestamp+'|'+m.username;
-    if(!msgSet.has(key)){remoteMsgs.push(m);msgSet.add(key);}
-  }
-  remoteMsgs.sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
-  if(remoteMsgs.length>CHAT_MAX)remoteMsgs.splice(0,remoteMsgs.length-CHAT_MAX);
-  merged.chatMessages=remoteMsgs;
-  return merged;
-}
-
 async function fetchData(){
-  // 多源尝试拉取数据（CDN优先，速度快）
+  // 多源尝试拉取数据。账号数据以远程文件为准，不再与本地用户缓存合并。
   for(const url of getMirrorUrls()){
     const text=await fetchFromUrl(url);
     if(text){
       try{
-        const remote=normalizeData(JSON.parse(text));
-        appData=mergeWithLocal(remote);
+        appData=normalizeData(JSON.parse(text));
         saveLocalData();
         return;
       }catch(e){}
@@ -552,16 +515,25 @@ async function fetchData(){
 async function fetchDataFromApi(){
   const remote=await fetchRemoteFile();
   dataSha=remote.sha;
-  appData=mergeWithLocal(remote.data);
+  appData=remote.data;
   saveLocalData();
 }
 
 async function fetchRemoteFile(){
-  const r=await fetch(getApiBase(),{headers:getApiHeaders(),cache:'no-cache'});
-  if(r.status===404)return{sha:null,data:getInitialData()};
-  if(!r.ok)throw new Error('API读取失败('+r.status+')');
-  const j=await r.json();dataSha=j.sha;
-  return{sha:j.sha,data:normalizeData(JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\n/g,''))))))};
+  let lastError=null;
+  for(let i=0;i<3;i++){
+    try{
+      const r=await apiFetch(getApiBase(),{cache:'no-cache'});
+      if(r.status===404)return{sha:null,data:getInitialData()};
+      if(!r.ok)throw new Error('API读取失败('+r.status+')');
+      const j=await r.json();dataSha=j.sha;
+      return{sha:j.sha,data:normalizeData(JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\n/g,''))))))};
+    }catch(e){
+      lastError=e;
+      if(i<2)await sleep(800*(i+1));
+    }
+  }
+  throw lastError||new Error('API读取失败');
 }
 
 const defaultTasks={
@@ -591,55 +563,39 @@ function cloneData(data){return JSON.parse(JSON.stringify(normalizeData(data)));
 
 async function saveData(msg){
   const pending=cloneData(appData||getInitialData());
+  const run=saveLock.catch(()=>{}).then(()=>saveDataNow(msg,pending));
+  saveLock=run.catch(()=>{});
+  return run;
+}
+
+async function saveDataNow(msg,pending){
   let lastError=null;
-  for(let i=0;i<3;i++){
+  for(let i=0;i<4;i++){
     if(!dataSha){
       const remote=await fetchRemoteFile();
       dataSha=remote.sha;
     }
     const c=btoa(unescape(encodeURIComponent(JSON.stringify(pending,null,2))));
     const b={message:msg,content:c};if(dataSha)b.sha=dataSha;
-    const r=await fetch(getApiBase(),{method:'PUT',headers:getApiHeaders(),body:JSON.stringify(b)});
+    let r;
+    try{
+      r=await apiFetch(getApiBase(),{method:'PUT',body:JSON.stringify(b)});
+    }catch(e){
+      lastError=e;
+      if(i<3){await sleep(900*(i+1));continue;}
+      throw lastError;
+    }
     if(r.ok){
       const j=await r.json();dataSha=j.content.sha;appData=pending;saveLocalData();return;
     }
     lastError=new Error('保存失败('+r.status+')');
     if(r.status===409||r.status===422){
-      // 冲突：先拉取最新远程数据，合并后再试
+      // 冲突只刷新sha并重试同一份待保存数据；账号删除/新增必须由当前操作决定，不能被旧缓存复活。
       const remote=await fetchRemoteFile();
       dataSha=remote.sha;
-      // 将远程的新数据合并到pending中（保留本地独有的用户和打卡数据）
-      for(const [k,v] of Object.entries(remote.data.users)){
-        if(!pending.users[k])pending.users[k]=v;
-      }
-      for(const [k,v] of Object.entries(remote.data.checkins||{})){
-        if(!pending.checkins[k])pending.checkins[k]=v;
-        else{
-          // 合并每个用户不同日期的打卡记录
-          for(const [dk,dv] of Object.entries(v)){
-            if(!pending.checkins[k][dk])pending.checkins[k][dk]=dv;
-          }
-        }
-      }
-      for(const [k,v] of Object.entries(remote.data.streaks||{})){
-        if(!pending.streaks[k])pending.streaks[k]=v;
-      }
-      for(const [k,v] of Object.entries(remote.data.studentTasks||{})){
-        if(!pending.studentTasks[k])pending.studentTasks[k]=v;
-      }
-      for(const [k,v] of Object.entries(remote.data.dailyTasks||{})){
-        if(!pending.dailyTasks[k])pending.dailyTasks[k]=v;
-      }
-      // 合并聊天消息
-      const remoteMsgs=remote.data.chatMessages||[];
-      const pendingKeys=new Set((pending.chatMessages||[]).map(m=>m.timestamp+'|'+m.username));
-      for(const m of remoteMsgs){
-        if(!pendingKeys.has(m.timestamp+'|'+m.username)){pending.chatMessages.push(m);pendingKeys.add(m.timestamp+'|'+m.username);}
-      }
-      pending.chatMessages.sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
-      if(pending.chatMessages.length>CHAT_MAX)pending.chatMessages.splice(0,pending.chatMessages.length-CHAT_MAX);
       continue;
     }
+    if((r.status===429||r.status>=500)&&i<3){await sleep(1200*(i+1));continue;}
     throw lastError;
   }
   throw lastError||new Error('保存失败');
@@ -648,6 +604,16 @@ async function saveData(msg){
 const LK='italiano_local_data';
 function loadLocalData(){const r=localStorage.getItem(LK);return r?normalizeData(JSON.parse(r)):getInitialData();}
 function saveLocalData(){localStorage.setItem(LK,JSON.stringify(appData));}
+function sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
+async function apiFetch(url,options={}){
+  const token=getToken();
+  const makeOptions=t=>Object.assign({},options,{headers:Object.assign({},getApiHeaders(t),options.headers||{})});
+  let r=await fetch(url,makeOptions(token));
+  if((r.status===401||r.status===403)&&token!==BUILTIN_TOKEN){
+    r=await fetch(url,makeOptions(BUILTIN_TOKEN));
+  }
+  return r;
+}
 
 function getTaskForStudent(student,date,cat){
   const st=appData.studentTasks||{};
@@ -672,19 +638,7 @@ async function doLogin(){
   if(!u||!p){e.textContent=_('errorFill');return;}
   showLoading(_('loading'));
   try{
-    // 第一步：先检查本地数据（最快，且不会丢失本地注册用户）
-    const local=loadLocalData();
-    if(local.users&&local.users[u]&&local.users[u].password===p){
-      appData=local;
-      currentUser={username:u,role:local.users[u].role};
-      saveLocalData();
-      if(currentUser.role==='teacher')showTeacherPage();else showStudentPage();
-      hideLoading();
-      // 后台静默同步远程数据
-      try{await fetchDataFromApi();if(currentUser.role==='teacher')showTeacherPage();else showStudentPage();updateSyncStatus(true);}catch(x){try{await fetchData();updateSyncStatus(true);}catch(x2){updateSyncStatus(false);}}
-      return;
-    }
-    // 第二步：本地没找到或密码不匹配，尝试远程数据
+    // 登录以GitHub远程data.json为准，避免旧设备localStorage里的账号被误认为仍存在。
     try{await fetchDataFromApi();}catch(x){await fetchData();}
     if(!appData.users[u]){e.textContent=_('errorNotFound');hideLoading();return;}
     if(appData.users[u].password!==p){e.textContent=_('errorWrongPass');hideLoading();return;}
@@ -708,14 +662,10 @@ async function doRegister(){
     try{await fetchDataFromApi();}catch(x){await fetchData();}
     if(!appData.chatMessages)appData.chatMessages=[];
     if(appData.users[u]){e.textContent=_('errorUserExists');hideLoading();return;}
+    const before=cloneData(appData);
     appData.users[u]={password:p,role:'student'};
-    saveLocalData(); // 先确保本地保存成功，登录即可用
-    try{await saveData('注册学生:'+u);showToast(_('regSuccess'));}catch(x){
-      saveLocalData();
-      showToast(_('regSuccessNoSync'));
-      // 5秒后静默重试一次
-      setTimeout(async()=>{try{await saveData('注册学生(重试):'+u);}catch(x){}},5000);
-    }
+    try{await saveData('注册学生:'+u);showToast(_('regSuccess'));}
+    catch(x){appData=before;saveLocalData();e.textContent=_('syncFail');hideLoading();return;}
     showLogin();hideLoading();
   }catch(x){e.textContent=_('errorNetwork');hideLoading();}
 }
@@ -739,12 +689,11 @@ function changeOwnPassword(){
   if(newP.length<4){showToast(_('errorPassShort'));return;}
   if(newP!==newP2){showToast(_('errorPassMismatch'));return;}
   if(appData.users[currentUser.username].password!==oldP){showToast(_('settingsPwdWrong'));return;}
+  const before=cloneData(appData);
   appData.users[currentUser.username].password=newP;
-  saveLocalData();
   showLoading(_('syncing'));
   saveData('修改密码:'+currentUser.username).then(()=>{updateSyncStatus(true);showToast(_('settingsPwdChanged'));}).catch(()=>{
-    updateSyncStatus(false);showToast(_('settingsPwdChanged'));
-    setTimeout(async()=>{try{await saveData('修改密码(重试):'+currentUser.username);updateSyncStatus(true);}catch(e){}},5000);
+    appData=before;saveLocalData();updateSyncStatus(false);showToast(_('syncFail'));
   }).finally(hideLoading);
   document.getElementById('oldPassword').value='';
   document.getElementById('newPassword').value='';
@@ -941,28 +890,23 @@ async function addTeacher(){
   if(!u||!p){showToast(_('errorFill'));return;}
   if(p.length<4){showToast(_('errorPassShort'));return;}
   if(appData.users[u]){showToast(_('errorUserExists'));return;}
-  appData.users[u]={password:p,role:'teacher'};saveLocalData();
+  const before=cloneData(appData);
+  appData.users[u]={password:p,role:'teacher'};
   showLoading(_('syncing'));
-  try{await saveData('添加教师:'+u);updateSyncStatus(true);}catch(e){
-    updateSyncStatus(false);
-    // 5秒后静默重试
-    setTimeout(async()=>{try{await saveData('添加教师(重试):'+u);updateSyncStatus(true);}catch(e){}},5000);
-  }
+  try{await saveData('添加教师:'+u);updateSyncStatus(true);}
+  catch(e){appData=before;saveLocalData();updateSyncStatus(false);hideLoading();showToast(_('syncFail'));renderTeacherSettings(document.getElementById('teacherMain'));return;}
   hideLoading();
   showToast(_('teacherAdded'));renderTeacherSettings(document.getElementById('teacherMain'));
 }
 
 async function deleteUser(name){
   if(!confirm(_('confirmDeleteUser')+' "'+name+'"？'+_('confirmDeleteUserMsg')))return;
+  const before=cloneData(appData);
   delete appData.users[name];delete appData.checkins[name];delete appData.streaks[name];
   if(appData.studentTasks)delete appData.studentTasks[name];
-  saveLocalData();
   showLoading(_('syncing'));
-  try{await saveData('删除用户:'+name);updateSyncStatus(true);}catch(e){
-    updateSyncStatus(false);
-    // 5秒后静默重试
-    setTimeout(async()=>{try{await saveData('删除用户(重试):'+name);updateSyncStatus(true);}catch(e){}},5000);
-  }
+  try{await saveData('删除用户:'+name);updateSyncStatus(true);}
+  catch(e){appData=before;saveLocalData();updateSyncStatus(false);hideLoading();showToast(_('syncFail'));renderTeacherSettings(document.getElementById('teacherMain'));return;}
   hideLoading();
   showToast(_('userDeleted'));renderTeacherSettings(document.getElementById('teacherMain'));
 }
@@ -1100,3 +1044,4 @@ showPage('loginPage');
 </script>
 </body>
 </html>
+
