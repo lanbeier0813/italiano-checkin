@@ -111,8 +111,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Helv
 .chat-input-row input:focus{border-color:#009246}
 .chat-input-row button{width:44px;height:44px;border-radius:50%;border:none;background:#009246;color:#fff;font-size:18px;cursor:pointer;flex-shrink:0;-webkit-appearance:none;display:flex;align-items:center;justify-content:center}
 .chat-input-row button:active{opacity:.8}
-.chat-refresh{text-align:center;margin-bottom:6px}
-.chat-refresh button{font-size:11px;color:#888;background:none;border:1px solid #ddd;padding:4px 12px;border-radius:12px;cursor:pointer;-webkit-appearance:none}
+.chat-refresh{text-align:center;margin-bottom:6px;position:relative;z-index:2;pointer-events:auto}
+.chat-refresh button{font-size:11px;color:#888;background:none;border:1px solid #ddd;padding:6px 14px;border-radius:12px;cursor:pointer;-webkit-appearance:none;touch-action:manipulation;pointer-events:auto}
 .task-editor{margin-bottom:16px}
 .task-editor label{display:block;font-size:12px;font-weight:600;color:#666;margin-bottom:4px}
 .task-editor textarea{width:100%;padding:10px 12px;border:2px solid #e8e8e8;border-radius:10px;font-size:14px;resize:vertical;min-height:60px;outline:none;margin-bottom:10px;font-family:inherit;line-height:1.5;-webkit-appearance:none}
@@ -549,7 +549,7 @@ const defaultTasks={
 
 function getDefaultTask(cat,ds){let h=0;for(let i=0;i<ds.length;i++){h=((h<<5)-h)+ds.charCodeAt(i);h|=0;}return defaultTasks[cat][Math.abs(h)%defaultTasks[cat].length];}
 
-function getInitialData(){return{users:{'toni':{password:'lanbeier0813',role:'teacher'}},dailyTasks:{},studentTasks:{},checkins:{},streaks:{},chatMessages:[]};}
+function getInitialData(){return{users:{'toni':{password:'lanbeier0813',role:'teacher'}},dailyTasks:{},studentTasks:{},checkins:{},streaks:{},chatMessages:[],hiddenChatMessages:{}};}
 
 function normalizeData(data){
   if(!data||typeof data!=='object')data=getInitialData();
@@ -559,6 +559,7 @@ function normalizeData(data){
   data.checkins=data.checkins||{};
   data.streaks=data.streaks||{};
   data.chatMessages=data.chatMessages||[];
+  data.hiddenChatMessages=data.hiddenChatMessages||{};
   if(!data.users['toni']&&data.users['Antonio']){data.users['toni']=data.users['Antonio'];delete data.users['Antonio'];}
   return data;
 }
@@ -713,6 +714,7 @@ function showTeacherPage(){
 
 function updateSyncStatus(ok){
   const el=document.getElementById('syncStatus');
+  if(!el)return;
   if(ok===true){el.textContent=_('syncOK')+' '+new Date().toLocaleTimeString();el.className='sync-status ok';}
   else if(ok===false){el.textContent=_('syncFail');el.className='sync-status error';}
   else{el.textContent=_('syncNoToken');el.className='sync-status';}
@@ -983,19 +985,19 @@ function renderPodiumHTML(){
 
 // ===== SHARED: Chat =====
 function renderChat(main){
-  main.innerHTML=`<div class="chat-area"><div class="chat-refresh"><button onclick="refreshChat()">${_('chatRefresh')}</button></div><div class="chat-messages" id="chatMessages"><div class="empty-state" style="padding:20px"><div class="icon">💬</div>${_('chatEmpty')}</div></div><div class="chat-input-row"><input type="text" id="chatInput" placeholder="${_('chatPlaceholder')}" maxlength="500" onkeydown="if(event.key==='Enter')sendChat()"><button onclick="sendChat()">➤</button></div></div><div style="text-align:center;color:#ccc;font-size:10px;margin-top:6px">${_('chatGroupHint')}</div>`;
+  main.innerHTML=`<div class="chat-area"><div class="chat-refresh"><button type="button" onclick="refreshChat();return false;">${_('chatRefresh')}</button></div><div class="chat-messages" id="chatMessages"><div class="empty-state" style="padding:20px"><div class="icon">💬</div>${_('chatEmpty')}</div></div><div class="chat-input-row"><input type="text" id="chatInput" placeholder="${_('chatPlaceholder')}" maxlength="500" onkeydown="if(event.key==='Enter')sendChat()"><button type="button" onclick="sendChat()">➤</button></div></div><div style="text-align:center;color:#ccc;font-size:10px;margin-top:6px">${_('chatGroupHint')}</div>`;
   renderChatMessages();
 }
 
 function renderChatMessages(){
   const el=document.getElementById('chatMessages');if(!el)return;
   const msgs=appData.chatMessages||[];
-  if(msgs.length===0){el.innerHTML='<div class="empty-state" style="padding:20px"><div class="icon">💬</div>'+_('chatEmpty')+'</div>';return;}
-  const offset=Math.max(0,msgs.length-100);
-  el.innerHTML=msgs.slice(-100).map((m,i)=>{
-    const idx=offset+i;
+  const hidden=getHiddenChatSet();
+  const visible=msgs.map((m,idx)=>({m,idx})).filter(x=>!hidden.has(getChatMessageKey(x.m))).slice(-100);
+  if(visible.length===0){el.innerHTML='<div class="empty-state" style="padding:20px"><div class="icon">💬</div>'+_('chatEmpty')+'</div>';return;}
+  el.innerHTML=visible.map(({m,idx})=>{
     const isMine=m.username===currentUser.username;
-    const t=new Date(m.timestamp);const ts=t.getHours().toString().padStart(2,'0')+':'+t.getMinutes().toString().padStart(2,'0');
+    const ts=formatChatTimestamp(m.timestamp);
     const roleLabel=m.role==='teacher'?_('settingsTeacher'):_('settingsStudent');
     return`<div class="chat-msg ${isMine?'mine':''}"><div class="cm-header"><span class="cm-name">${m.username}</span><span class="cm-role ${m.role}">${roleLabel}</span><span class="cm-time">${ts}</span></div><div class="cm-body" onpointerdown="startChatLongPress(event,${idx})" onpointerup="cancelChatLongPress()" onpointerleave="cancelChatLongPress()" onpointercancel="cancelChatLongPress()" onpointermove="cancelChatLongPress()" oncontextmenu="event.preventDefault();deleteChatMessage(${idx})">${escapeHtml(m.message)}</div></div>`;
   }).join('');
@@ -1003,6 +1005,32 @@ function renderChatMessages(){
 }
 
 function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function getChatMessageKey(m){
+  return m.id||[m.timestamp||'',m.username||'',m.role||'',m.message||''].join('|');
+}
+
+function getHiddenChatSet(){
+  const u=currentUser&&currentUser.username;
+  const hidden=(appData.hiddenChatMessages&&u&&appData.hiddenChatMessages[u])||[];
+  return new Set(hidden);
+}
+
+function formatChatTimestamp(ts){
+  const d=new Date(ts);
+  if(isNaN(d))return '';
+  const hh=String(d.getHours()).padStart(2,'0'), mm=String(d.getMinutes()).padStart(2,'0');
+  const m=d.getMonth(), day=d.getDate();
+  if(lang==='en'){
+    const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${months[m]} ${day} ${hh}:${mm}`;
+  }
+  if(lang==='it'){
+    const months=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+    return `${day} ${months[m]} ${hh}:${mm}`;
+  }
+  return `${m+1}月${day}日 ${hh}:${mm}`;
+}
 
 function startChatLongPress(event,idx){
   cancelChatLongPress();
@@ -1018,9 +1046,13 @@ async function deleteChatMessage(idx){
   if(!appData.chatMessages||!appData.chatMessages[idx])return;
   if(!confirm(_('confirmDeleteChat')))return;
   const before=cloneData(appData);
-  appData.chatMessages.splice(idx,1);
+  const key=getChatMessageKey(appData.chatMessages[idx]);
+  if(!appData.hiddenChatMessages)appData.hiddenChatMessages={};
+  const u=currentUser.username;
+  if(!appData.hiddenChatMessages[u])appData.hiddenChatMessages[u]=[];
+  if(!appData.hiddenChatMessages[u].includes(key))appData.hiddenChatMessages[u].push(key);
   saveLocalData();renderChatMessages();showLoading(_('syncing'));
-  try{await saveData('删除聊天:'+currentUser.username);updateSyncStatus(true);showToast(_('chatDeleted'));}
+  try{await saveData('隐藏聊天:'+currentUser.username);updateSyncStatus(true);showToast(_('chatDeleted'));}
   catch(e){appData=before;saveLocalData();renderChatMessages();updateSyncStatus(false);showToast(_('syncFail'));}
   hideLoading();
 }
@@ -1035,7 +1067,10 @@ async function sendChat(){
 }
 
 async function refreshChat(){
-  try{await fetchData();if(!appData.chatMessages)appData.chatMessages=[];updateSyncStatus(true);}catch(e){updateSyncStatus(false);}
+  showLoading(_('syncing'));
+  try{await fetchDataFromApi();if(!appData.chatMessages)appData.chatMessages=[];updateSyncStatus(true);}
+  catch(e){try{await fetchData();if(!appData.chatMessages)appData.chatMessages=[];updateSyncStatus(true);}catch(e2){updateSyncStatus(false);showToast(_('syncFail'));}}
+  hideLoading();
   renderChatMessages();
 }
 
