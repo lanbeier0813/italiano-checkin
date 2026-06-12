@@ -7,24 +7,11 @@
     "a1": {
       "password": "a1888888",
       "role": "teacher"
-    },
-    "ceshi": {
-      "password": "ceshi",
-      "role": "student"
     }
   },
   "dailyTasks": {},
   "studentTasks": {},
-  "checkins": {
-    "ceshi": {
-      "2026-06-12": {
-        "homework": false,
-        "dictation": false,
-        "recite": false,
-        "speaking": false
-      }
-    }
-  },
+  "checkins": {},
   "streaks": {},
   "chatMessages": [
     {
