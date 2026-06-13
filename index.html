@@ -547,7 +547,8 @@ async function saveDataNow(msg,pending){
   else if(msg.startsWith('编辑 '))await supabaseSaveTasks(pending);
   else if(msg.startsWith('聊天:')||msg.startsWith('聊天(重试):'))await supabaseSaveChatMessages(pending);
   else if(msg.startsWith('隐藏聊天:'))await supabaseSaveHiddenChatMessages(pending);
-  else if(msg.startsWith('修改密码:')||msg.startsWith('注册学生:')||msg.startsWith('添加教师:')||msg.startsWith('同步本地注册:'))await supabaseSaveUsers(pending);
+  else if(msg.startsWith('注册学生:')||msg.startsWith('添加教师:')||msg.startsWith('修改密码:'))await supabaseSaveOneUser(pending,msg.split(':').slice(1).join(':').trim());
+  else if(msg.startsWith('同步本地注册:'))await supabaseSaveUsers(pending);
   else await supabaseSaveAll(pending);
   appData=pending;saveLocalData();
 }
@@ -555,54 +556,8 @@ async function saveDataNow(msg,pending){
 const LK='italiano_local_data';
 function loadLocalData(){const r=localStorage.getItem(LK);return r?normalizeData(JSON.parse(r)):getInitialData();}
 function saveLocalData(){localStorage.setItem(LK,JSON.stringify(appData));}
-function loadPendingUsers(){try{return JSON.parse(localStorage.getItem(PENDING_USERS_KEY)||'{}')||{};}catch(e){return{};}}
-function savePendingUsers(users){localStorage.setItem(PENDING_USERS_KEY,JSON.stringify(users||{}));}
-function getLocalRegisteredUser(username,password){
-  const u=loadPendingUsers()[username];
-  if(!u||u.password!==password)return null;
-  const t=Date.parse(u.createdAt||'');
-  if(!t||Date.now()-t>24*60*60*1000)return null;
-  return {password:u.password,role:u.role||'student'};
-}
-function addPendingUser(username,password){
-  const users=loadPendingUsers();
-  users[username]={password,role:'student',createdAt:new Date().toISOString()};
-  savePendingUsers(users);
-}
-function removePendingUser(username){
-  const users=loadPendingUsers();
-  if(users[username]){delete users[username];savePendingUsers(users);}
-}
-async function syncPendingUsers(){
-  const pending=loadPendingUsers();
-  const names=Object.keys(pending);
-  if(names.length===0)return false;
-  const merged=cloneData(await fetchSupabaseData());
-  const synced=[];
-  let changed=false;
-  for(const name of names){
-    const u=pending[name];
-    if(!u||!u.password){delete pending[name];continue;}
-    const t=Date.parse(u.createdAt||'');
-    if(!t||Date.now()-t>24*60*60*1000){delete pending[name];continue;}
-    if(!merged.users[name]){
-      merged.users[name]={password:u.password,role:'student'};
-      synced.push(name);changed=true;
-    }else{
-      synced.push(name);
-    }
-  }
-  if(changed){
-    appData=merged;
-    await saveData('同步本地注册:'+synced.join(','));
-  }else{
-    appData=merged;
-    saveLocalData();
-  }
-  for(const name of synced)delete pending[name];
-  savePendingUsers(pending);
-  return changed;
-}
+function clearLegacyPendingUsers(){localStorage.removeItem(PENDING_USERS_KEY);}
+function removePendingUser(username){clearLegacyPendingUsers();}
 function sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
 function supabaseHeaders(extra={}){
   return Object.assign({'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+SUPABASE_ANON_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},extra);
@@ -620,6 +575,19 @@ function studentTaskRow(username,date,t){return{username,task_date:date,homework
 async function supabaseUpsert(table,rows,onConflict){
   if(!rows||rows.length===0)return;
   await supabaseRequest(`${table}?on_conflict=${encodeURIComponent(onConflict)}`,{method:'POST',headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(rows)});
+}
+async function supabaseGetUser(username){
+  const rows=await supabaseRequest('app_users?select=*&username=eq.'+encodeURIComponent(username));
+  return rows&&rows[0]?rows[0]:null;
+}
+async function supabaseSaveOneUser(data,username){
+  const u=data.users&&data.users[username];
+  if(!username||!u)throw new Error('用户数据不存在');
+  const row={username,password:u.password,role:u.role,updated_at:new Date().toISOString()};
+  const saved=await supabaseRequest('app_users?on_conflict=username',{method:'POST',headers:{'Prefer':'resolution=merge-duplicates,return=representation'},body:JSON.stringify([row])});
+  if(!Array.isArray(saved)||saved.length===0)throw new Error('用户保存未生效');
+  const check=await supabaseGetUser(username);
+  if(!check||check.password!==u.password||check.role!==u.role)throw new Error('用户保存后复查失败');
 }
 async function supabaseSaveUsers(data){
   const rows=Object.entries(data.users).map(([username,u])=>({username,password:u.password,role:u.role,updated_at:new Date().toISOString()}));
@@ -698,23 +666,8 @@ async function doLogin(){
   showLoading(_('loading'));
   try{
     // 登录以Supabase远程用户表为准，避免旧设备localStorage里的账号被误认为仍存在。
-      let remoteError=false;
-      try{await fetchDataFromApi();await syncPendingUsers();}catch(x){remoteError=true;try{await fetchData();}catch(y){}}
+      await fetchDataFromApi();
       if(!appData.users[u]){
-        if(remoteError){
-          const localUser=getLocalRegisteredUser(u,p);
-          if(localUser){
-            if(!appData)appData=loadLocalData();
-            appData.users[u]={password:p,role:localUser.role};
-            saveLocalData();
-            currentUser={username:u,role:localUser.role};
-            if(currentUser.role==='teacher')showTeacherPage();else showStudentPage();
-            hideLoading();showToast(_('syncFail'));
-            setTimeout(async()=>{try{await syncPendingUsers();}catch(e){}},1000);
-            return;
-          }
-          e.textContent=_('errorNetwork');hideLoading();return;
-        }
         e.textContent=_('errorNotFound');hideLoading();return;
       }
     if(appData.users[u].password!==p){e.textContent=_('errorWrongPass');hideLoading();return;}
@@ -735,20 +688,24 @@ async function doRegister(){
   if(reserved.includes(u.toLowerCase())){e.textContent=_('errorReserved');return;}
   showLoading(_('loading'));
   try{
-    // 注册必须直连API，CDN有缓存延迟可能漏掉刚注册的用户
-    try{await fetchDataFromApi();}catch(x){await fetchData();}
+    // 注册必须直连Supabase并通过写入后复查，避免出现“注册成功但登录不存在”。
+    await fetchDataFromApi();
     if(!appData.chatMessages)appData.chatMessages=[];
       if(appData.users[u]){e.textContent=_('errorUserExists');hideLoading();return;}
       const before=cloneData(appData);
       appData.users[u]={password:p,role:'student'};
-      try{await saveData('注册学生:'+u);removePendingUser(u);showToast(_('regSuccess'));}
+      try{
+        await saveData('注册学生:'+u);
+        await fetchDataFromApi();
+        if(!appData.users[u]||appData.users[u].password!==p)throw new Error('注册后复查失败');
+        removePendingUser(u);showToast(_('regSuccess'));
+      }
     catch(x){
-      addPendingUser(u,p);
       appData=before;
-      appData.users[u]={password:p,role:'student'};
       saveLocalData();
-      showToast(_('regSuccessNoSync'));
-      setTimeout(async()=>{try{await syncPendingUsers();}catch(e){}},1000);
+      e.textContent=_('errorNetwork');
+      hideLoading();
+      return;
     }
     showLogin();document.getElementById('loginUser').value=u;hideLoading();
   }catch(x){e.textContent=_('errorNetwork');hideLoading();}
@@ -1202,6 +1159,7 @@ if('serviceWorker' in navigator){navigator.serviceWorker.register('/italiano-che
 document.addEventListener('keydown',e=>{if(e.key==='Enter'){if(document.getElementById('loginPage').classList.contains('active'))doLogin();if(document.getElementById('registerPage').classList.contains('active'))doRegister();}});
 
 // ===== INIT =====
+clearLegacyPendingUsers();
 updateAllUIText();
 showPage('loginPage');
 </script>
