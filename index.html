@@ -626,7 +626,17 @@ async function supabaseSaveUsers(data){
   await supabaseUpsert('app_users',rows,'username');
 }
 async function supabaseDeleteUser(username){
-  await supabaseRequest('app_users?username=eq.'+encodeURIComponent(username),{method:'DELETE'});
+  const name=encodeURIComponent(username);
+  await Promise.all([
+    supabaseRequest('hidden_chat_messages?username=eq.'+name,{method:'DELETE'}),
+    supabaseRequest('student_tasks?username=eq.'+name,{method:'DELETE'}),
+    supabaseRequest('checkins?username=eq.'+name,{method:'DELETE'}),
+    supabaseRequest('streaks?username=eq.'+name,{method:'DELETE'})
+  ]);
+  const deleted=await supabaseRequest('app_users?username=eq.'+name,{method:'DELETE',headers:{'Prefer':'return=representation'}});
+  if(!Array.isArray(deleted)||deleted.length===0)throw new Error('用户删除未生效');
+  const check=await supabaseRequest('app_users?select=username&username=eq.'+name);
+  if(check&&check.length>0)throw new Error('用户仍存在');
 }
 async function supabaseClearOldChat(){
   const cutoff=encodeURIComponent(getTodayStartISO());
