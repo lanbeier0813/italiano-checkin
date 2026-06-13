@@ -472,7 +472,7 @@ function updateAllUIText(){
 // ===== CONFIG =====
 const SUPABASE_URL='https://imzxxbxdjwqfduwsqipz.supabase.co';
 const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imltenh4YnhkandxZmR1d3NxaXB6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTU0MzIsImV4cCI6MjA5Njg5MTQzMn0.cq8SAZU2vOl3VMdgML4LlpSKCCH-AFrYSjW64MHipnk';
-const CHAT_MAX=200, PENDING_USERS_KEY='italiano_pending_users';
+const CHAT_MAX=200, PENDING_USERS_KEY='italiano_pending_users', DELETED_USER_PREFIX='__deleted_user__:';
 let appData=null, currentUser=null, teacherTaskStudent='__default__', chatTimer=null, teacherRefreshTimer=null, chatLongPressTimer=null, saveLock=Promise.resolve();
 
 function getToken(){return SUPABASE_ANON_KEY;}
@@ -497,9 +497,16 @@ async function fetchSupabaseData(){
     supabaseRequest('chat_messages?select=*&created_at=gte.'+encodeURIComponent(getTodayStartISO())+'&order=created_at.asc'),
     supabaseRequest('hidden_chat_messages?select=*')
   ]);
-  const data=getInitialData();data.users={};data.chatMessages=[];data.hiddenChatMessages={};
-  users.forEach(u=>{data.users[u.username]={password:u.password,role:u.role};});
-  daily.forEach(t=>{data.dailyTasks[t.task_date]={homework:t.homework||'',dictation:t.dictation||'',recite:t.recite||'',speaking:t.speaking||''};});
+  const data=getInitialData();data.users={};data.chatMessages=[];data.hiddenChatMessages={};data.deletedUsers=[];
+  const deletedUsers=new Set();
+  daily.forEach(t=>{if((t.task_date||'').startsWith(DELETED_USER_PREFIX))deletedUsers.add(decodeDeletedUsername(t.task_date));});
+  data.deletedUsers=Array.from(deletedUsers);
+  users.forEach(u=>{if(!deletedUsers.has(u.username))data.users[u.username]={password:u.password,role:u.role};});
+  users.filter(u=>deletedUsers.has(u.username)).forEach(u=>{supabaseDeleteUser(u.username).catch(()=>{});});
+  daily.forEach(t=>{
+    if((t.task_date||'').startsWith(DELETED_USER_PREFIX))return;
+    data.dailyTasks[t.task_date]={homework:t.homework||'',dictation:t.dictation||'',recite:t.recite||'',speaking:t.speaking||''};
+  });
   student.forEach(t=>{if(!data.studentTasks[t.username])data.studentTasks[t.username]={};data.studentTasks[t.username][t.task_date]={homework:t.homework||'',dictation:t.dictation||'',recite:t.recite||'',speaking:t.speaking||''};});
   checkins.forEach(c=>{if(!data.checkins[c.username])data.checkins[c.username]={};data.checkins[c.username][c.checkin_date]={homework:!!c.homework,dictation:!!c.dictation,recite:!!c.recite,speaking:!!c.speaking};});
   streaks.forEach(s=>{data.streaks[s.username]={streak:s.streak||0,flowers:s.flowers||0,lastCheckinDate:s.last_checkin_date||null};});
@@ -559,6 +566,13 @@ function saveLocalData(){localStorage.setItem(LK,JSON.stringify(appData));}
 function clearLegacyPendingUsers(){localStorage.removeItem(PENDING_USERS_KEY);}
 function removePendingUser(username){clearLegacyPendingUsers();}
 function sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
+function deletedUserKey(username){return DELETED_USER_PREFIX+encodeURIComponent(username);}
+function decodeDeletedUsername(key){return decodeURIComponent((key||'').slice(DELETED_USER_PREFIX.length));}
+function getDeletedUsers(data){
+  const deleted=new Set((data&&data.deletedUsers)||[]);
+  Object.keys((data&&data.dailyTasks)||{}).forEach(k=>{if(k.startsWith(DELETED_USER_PREFIX))deleted.add(decodeDeletedUsername(k));});
+  return deleted;
+}
 function supabaseHeaders(extra={}){
   return Object.assign({'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+SUPABASE_ANON_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},extra);
 }
@@ -583,6 +597,7 @@ async function supabaseGetUser(username){
 async function supabaseSaveOneUser(data,username){
   const u=data.users&&data.users[username];
   if(!username||!u)throw new Error('用户数据不存在');
+  if(getDeletedUsers(data).has(username))throw new Error('用户已删除');
   const row={username,password:u.password,role:u.role,updated_at:new Date().toISOString()};
   const saved=await supabaseRequest('app_users?on_conflict=username',{method:'POST',headers:{'Prefer':'resolution=merge-duplicates,return=representation'},body:JSON.stringify([row])});
   if(!Array.isArray(saved)||saved.length===0)throw new Error('用户保存未生效');
@@ -590,11 +605,13 @@ async function supabaseSaveOneUser(data,username){
   if(!check||check.password!==u.password||check.role!==u.role)throw new Error('用户保存后复查失败');
 }
 async function supabaseSaveUsers(data){
-  const rows=Object.entries(data.users).map(([username,u])=>({username,password:u.password,role:u.role,updated_at:new Date().toISOString()}));
+  const deleted=getDeletedUsers(data);
+  const rows=Object.entries(data.users).filter(([username])=>!deleted.has(username)).map(([username,u])=>({username,password:u.password,role:u.role,updated_at:new Date().toISOString()}));
   await supabaseUpsert('app_users',rows,'username');
 }
 async function supabaseDeleteUser(username){
   const name=encodeURIComponent(username);
+  await supabaseUpsert('daily_tasks',[{task_date:deletedUserKey(username),homework:new Date().toISOString(),dictation:'deleted-user',recite:'',speaking:'',updated_at:new Date().toISOString()}],'task_date');
   await Promise.all([
     supabaseRequest('hidden_chat_messages?username=eq.'+name,{method:'DELETE'}),
     supabaseRequest('student_tasks?username=eq.'+name,{method:'DELETE'}),
