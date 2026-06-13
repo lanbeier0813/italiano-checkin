@@ -790,13 +790,23 @@ function updateSyncStatus(ok){
   else{el.textContent=_('syncNoToken');el.className='sync-status';}
 }
 
-function switchTeacherTab(tab){
+async function switchTeacherTab(tab){
   document.querySelectorAll('#teacherNav .nav-item').forEach(b=>b.classList.remove('active'));
   const map={students:0,tasks:1,podium:2,chat:3,settings:4};
   document.querySelectorAll('#teacherNav .nav-item')[map[tab]].classList.add('active');
   const main=document.getElementById('teacherMain');
-  if(tab==='students')renderTeacherStudents(main);
-  else if(tab==='tasks')renderTeacherTasks(main);
+  if(tab==='students'){
+    if(chatTimer){clearInterval(chatTimer);chatTimer=null;}
+    main.innerHTML='<div class="empty-state"><div class="icon">⏳</div>'+_('loading')+'</div>';
+    try{await fetchDataFromApi();updateSyncStatus(true);}catch(e){updateSyncStatus(false);}
+    renderTeacherStudents(main);
+  }
+  else if(tab==='tasks'){
+    if(chatTimer){clearInterval(chatTimer);chatTimer=null;}
+    main.innerHTML='<div class="empty-state"><div class="icon">⏳</div>'+_('loading')+'</div>';
+    try{await fetchDataFromApi();updateSyncStatus(true);}catch(e){updateSyncStatus(false);}
+    renderTeacherTasks(main);
+  }
   else if(tab==='podium'){if(chatTimer){clearInterval(chatTimer);chatTimer=null;}renderTeacherPodium(main);}
   else if(tab==='chat'){renderChat(main);startChatPoll();}
   else if(tab==='settings'){if(chatTimer){clearInterval(chatTimer);chatTimer=null;}renderTeacherSettings(main);}
