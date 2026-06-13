@@ -1,4 +1,4 @@
-const CACHE = 'italiano-checkin-v6';
+const CACHE = 'italiano-checkin-v7';
 const URLS = [
   '/italiano-checkin/',
   '/italiano-checkin/index.html',
@@ -37,4 +37,5 @@ self.addEventListener('fetch', e => {
     }).catch(() => caches.match('/italiano-checkin/')))
   );
 });
+
 
