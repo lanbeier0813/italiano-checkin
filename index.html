@@ -296,8 +296,8 @@ const I18N = {
     taskDefaultHint:'💡 默认作业适用于所有学生。选择具体学生可为其单独定制，未定制则使用默认。',
     taskDefaultOption:'📋 默认（所有学生）', taskSave:'💾 保存', taskSaved:'作业已保存', taskSyncSaved:'并同步',
     taskHomework:'📝 作业 · Compiti', taskDictation:'👂 听写 · Dettato', taskRecite:'📖 背诵 · Recitazione', taskSpeaking:'🗣️ 口语 · Conversazione',
-    settingsToken:'🔑 GitHub Token', settingsTokenOk:'✅ 已配置', settingsTokenChange:'更换',
-    settingsTokenHint:'Token 已内置，更换需谨慎。',
+    settingsToken:'☁️ 云端同步', settingsTokenOk:'✅ Supabase 已启用', settingsTokenChange:'刷新',
+    settingsTokenHint:'数据已迁移到 Supabase，不再使用 GitHub 作为数据库。',
     settingsTokenWarn:'⚠️ 请配置 GitHub Token', settingsTokenWarnHint1:'数据同步需要 GitHub Personal Access Token。',
     settingsTokenWarnHint2:'点击生成 Token', settingsTokenWarnHint3:' → 选 Generate new token (classic) → 勾选 repo → 粘贴到下方。',
     settingsTokenWarnHint4:'不配置 Token 也可以使用，但数据只保存在本地。', settingsTokenPlaceholder:'ghp_...',
@@ -342,8 +342,8 @@ const I18N = {
     taskDefaultHint:'💡 Default tasks apply to all students. Select a student to customize individually.',
     taskDefaultOption:'📋 Default (All Students)', taskSave:'💾 Save', taskSaved:'Tasks saved', taskSyncSaved:'and synced',
     taskHomework:'📝 Homework · Compiti', taskDictation:'👂 Dictation · Dettato', taskRecite:'📖 Recitation · Recitazione', taskSpeaking:'🗣️ Speaking · Conversazione',
-    settingsToken:'🔑 GitHub Token', settingsTokenOk:'✅ Configured', settingsTokenChange:'Change',
-    settingsTokenHint:'Token is built-in. Change with caution.',
+    settingsToken:'☁️ Cloud Sync', settingsTokenOk:'✅ Supabase enabled', settingsTokenChange:'Refresh',
+    settingsTokenHint:'Data is now stored in Supabase. GitHub is no longer used as the database.',
     settingsTokenWarn:'⚠️ Configure GitHub Token', settingsTokenWarnHint1:'Data sync requires a GitHub Personal Access Token.',
     settingsTokenWarnHint2:'Generate Token', settingsTokenWarnHint3:' → Select Generate new token (classic) → Check repo → Paste below.',
     settingsTokenWarnHint4:'You can still use the app without a token, but data stays local.', settingsTokenPlaceholder:'ghp_...',
@@ -388,8 +388,8 @@ const I18N = {
     taskDefaultHint:'💡 I compiti predefiniti valgono per tutti. Seleziona uno studente per personalizzarli.',
     taskDefaultOption:'📋 Predefinito (tutti)', taskSave:'💾 Salva', taskSaved:'Compiti salvati', taskSyncSaved:'e sincronizzati',
     taskHomework:'📝 Compiti', taskDictation:'👂 Dettato', taskRecite:'📖 Recitazione', taskSpeaking:'🗣️ Conversazione',
-    settingsToken:'🔑 GitHub Token', settingsTokenOk:'✅ Configurato', settingsTokenChange:'Cambia',
-    settingsTokenHint:'Token integrato. Cambia con cautela.',
+    settingsToken:'☁️ Sincronizzazione cloud', settingsTokenOk:'✅ Supabase attivo', settingsTokenChange:'Aggiorna',
+    settingsTokenHint:'I dati ora sono salvati in Supabase. GitHub non è più usato come database.',
     settingsTokenWarn:'⚠️ Configura GitHub Token', settingsTokenWarnHint1:'La sincronizzazione richiede un GitHub Personal Access Token.',
     settingsTokenWarnHint2:'Genera Token', settingsTokenWarnHint3:' → Seleziona Generate new token (classic) → Spunta repo → Incolla sotto.',
     settingsTokenWarnHint4:'Puoi usare l\'app senza token, ma i dati restano locali.', settingsTokenPlaceholder:'ghp_...',
@@ -470,74 +470,41 @@ function updateAllUIText(){
 }
 
 // ===== CONFIG =====
-const REPO_OWNER='a1studio-user', REPO_NAME='italiano-checkin', DATA_PATH='data.json', TOKEN_KEY='github_token', CHAT_MAX=200, PENDING_USERS_KEY='italiano_pending_users';
-const BUILTIN_TOKEN='ghp_'+'BEVyv3fajDIH0AIVDrnZgMwDoGiLCu02HymD';
-let appData=null, dataSha=null, currentUser=null, teacherTaskStudent='__default__', chatTimer=null, chatLongPressTimer=null, saveLock=Promise.resolve();
+const SUPABASE_URL='https://imzxxbxdjwqfduwsqipz.supabase.co';
+const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imltenh4YnhkandxZmR1d3NxaXB6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTU0MzIsImV4cCI6MjA5Njg5MTQzMn0.cq8SAZU2vOl3VMdgML4LlpSKCCH-AFrYSjW64MHipnk';
+const CHAT_MAX=200, PENDING_USERS_KEY='italiano_pending_users';
+let appData=null, currentUser=null, teacherTaskStudent='__default__', chatTimer=null, chatLongPressTimer=null, saveLock=Promise.resolve();
 
-function getToken(){return localStorage.getItem(TOKEN_KEY)||BUILTIN_TOKEN;}
-function setToken(t){localStorage.setItem(TOKEN_KEY,t);}
-function hasToken(){return !!getToken();}
-function getApiBase(){return `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DATA_PATH}`;}
-function getApiHeaders(token=getToken()){return{'Authorization':`token ${token}`,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'};}
-function getRawUrl(){return `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/${DATA_PATH}`;}
-function getMirrorUrls(){
-  return [
-    location.origin+'/italiano-checkin/'+DATA_PATH,
-    `https://a1studio-user.github.io/italiano-checkin/${DATA_PATH}`,
-    `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/${DATA_PATH}`,
-    `https://cdn.jsdelivr.net/gh/${REPO_OWNER}/${REPO_NAME}@main/${DATA_PATH}`,
-  ];
-}
+function getToken(){return SUPABASE_ANON_KEY;}
+function setToken(t){}
+function hasToken(){return true;}
 
-async function fetchFromUrl(url){
-  const ctrl=new AbortController();
-  const t=setTimeout(()=>ctrl.abort(),5000);
-  try{
-    const r=await fetch(url,{cache:'no-cache',signal:ctrl.signal});
-    if(r.ok)return await r.text();
-  }catch(e){}finally{clearTimeout(t);}
-  return null;
-}
+async function fetchData(){return fetchDataFromApi();}
 
-async function fetchData(){
-  // 多源尝试拉取数据。账号数据以远程文件为准，不再与本地用户缓存合并。
-  for(const url of getMirrorUrls()){
-    const text=await fetchFromUrl(url);
-    if(text){
-      try{
-        appData=normalizeData(JSON.parse(text));
-        saveLocalData();
-        return;
-      }catch(e){}
-    }
-  }
-  // CDN全失败，走API
-  await fetchDataFromApi();
-}
-
-// 直连GitHub API（有内置Token），CDN缓存延迟时使用
 async function fetchDataFromApi(){
-  const remote=await fetchRemoteFile();
-  dataSha=remote.sha;
-  appData=remote.data;
+  appData=await fetchSupabaseData();
   saveLocalData();
 }
 
-async function fetchRemoteFile(){
-  let lastError=null;
-  for(let i=0;i<3;i++){
-    try{
-      const r=await apiFetch(getApiBase(),{cache:'no-cache'});
-      if(r.status===404)return{sha:null,data:getInitialData()};
-      if(!r.ok)throw new Error('API读取失败('+r.status+')');
-      const j=await r.json();dataSha=j.sha;
-      return{sha:j.sha,data:normalizeData(JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\n/g,''))))))};
-    }catch(e){
-      lastError=e;
-      if(i<2)await sleep(800*(i+1));
-    }
-  }
-  throw lastError||new Error('API读取失败');
+async function fetchSupabaseData(){
+  const [users,daily,student,checkins,streaks,chat,hidden]=await Promise.all([
+    supabaseRequest('app_users?select=*'),
+    supabaseRequest('daily_tasks?select=*'),
+    supabaseRequest('student_tasks?select=*'),
+    supabaseRequest('checkins?select=*'),
+    supabaseRequest('streaks?select=*'),
+    supabaseRequest('chat_messages?select=*&order=created_at.asc'),
+    supabaseRequest('hidden_chat_messages?select=*')
+  ]);
+  const data=getInitialData();data.users={};data.chatMessages=[];data.hiddenChatMessages={};
+  users.forEach(u=>{data.users[u.username]={password:u.password,role:u.role};});
+  daily.forEach(t=>{data.dailyTasks[t.task_date]={homework:t.homework||'',dictation:t.dictation||'',recite:t.recite||'',speaking:t.speaking||''};});
+  student.forEach(t=>{if(!data.studentTasks[t.username])data.studentTasks[t.username]={};data.studentTasks[t.username][t.task_date]={homework:t.homework||'',dictation:t.dictation||'',recite:t.recite||'',speaking:t.speaking||''};});
+  checkins.forEach(c=>{if(!data.checkins[c.username])data.checkins[c.username]={};data.checkins[c.username][c.checkin_date]={homework:!!c.homework,dictation:!!c.dictation,recite:!!c.recite,speaking:!!c.speaking};});
+  streaks.forEach(s=>{data.streaks[s.username]={streak:s.streak||0,flowers:s.flowers||0,lastCheckinDate:s.last_checkin_date||null};});
+  chat.forEach(m=>{data.chatMessages.push({id:m.id,username:m.username,role:m.role,message:m.message,timestamp:m.created_at});});
+  hidden.forEach(h=>{if(!data.hiddenChatMessages[h.username])data.hiddenChatMessages[h.username]=[];data.hiddenChatMessages[h.username].push(h.message_key);});
+  return normalizeData(data);
 }
 
 const defaultTasks={
@@ -574,36 +541,14 @@ async function saveData(msg){
 }
 
 async function saveDataNow(msg,pending){
-  let lastError=null;
-  for(let i=0;i<4;i++){
-    if(!dataSha){
-      const remote=await fetchRemoteFile();
-      dataSha=remote.sha;
-    }
-    const c=btoa(unescape(encodeURIComponent(JSON.stringify(pending,null,2))));
-    const b={message:msg,content:c};if(dataSha)b.sha=dataSha;
-    let r;
-    try{
-      r=await apiFetch(getApiBase(),{method:'PUT',body:JSON.stringify(b)});
-    }catch(e){
-      lastError=e;
-      if(i<3){await sleep(900*(i+1));continue;}
-      throw lastError;
-    }
-    if(r.ok){
-      const j=await r.json();dataSha=j.content.sha;appData=pending;saveLocalData();return;
-    }
-    lastError=new Error('保存失败('+r.status+')');
-    if(r.status===409||r.status===422){
-      // 冲突只刷新sha并重试同一份待保存数据；账号删除/新增必须由当前操作决定，不能被旧缓存复活。
-      const remote=await fetchRemoteFile();
-      dataSha=remote.sha;
-      continue;
-    }
-    if((r.status===429||r.status>=500)&&i<3){await sleep(1200*(i+1));continue;}
-    throw lastError;
-  }
-  throw lastError||new Error('保存失败');
+  if(msg.startsWith('删除用户:'))await supabaseDeleteUser(msg.replace('删除用户:','').trim());
+  else if(msg.includes('checkin'))await supabaseSaveCheckinsAndStreaks(pending);
+  else if(msg.startsWith('编辑 '))await supabaseSaveTasks(pending);
+  else if(msg.startsWith('聊天:')||msg.startsWith('聊天(重试):'))await supabaseSaveChatMessages(pending);
+  else if(msg.startsWith('隐藏聊天:'))await supabaseSaveHiddenChatMessages(pending);
+  else if(msg.startsWith('修改密码:')||msg.startsWith('注册学生:')||msg.startsWith('添加教师:')||msg.startsWith('同步本地注册:'))await supabaseSaveUsers(pending);
+  else await supabaseSaveAll(pending);
+  appData=pending;saveLocalData();
 }
 
 const LK='italiano_local_data';
@@ -624,9 +569,7 @@ async function syncPendingUsers(){
   const pending=loadPendingUsers();
   const names=Object.keys(pending);
   if(names.length===0)return false;
-  const remote=await fetchRemoteFile();
-  dataSha=remote.sha;
-  const merged=cloneData(remote.data);
+  const merged=cloneData(await fetchSupabaseData());
   const synced=[];
   let changed=false;
   for(const name of names){
@@ -651,14 +594,59 @@ async function syncPendingUsers(){
   return changed;
 }
 function sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
-async function apiFetch(url,options={}){
-  const token=getToken();
-  const makeOptions=t=>Object.assign({},options,{headers:Object.assign({},getApiHeaders(t),options.headers||{})});
-  let r=await fetch(url,makeOptions(token));
-  if((r.status===401||r.status===403)&&token!==BUILTIN_TOKEN){
-    r=await fetch(url,makeOptions(BUILTIN_TOKEN));
-  }
-  return r;
+function supabaseHeaders(extra={}){
+  return Object.assign({'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+SUPABASE_ANON_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},extra);
+}
+async function supabaseRequest(path,options={}){
+  const url=SUPABASE_URL+'/rest/v1/'+path;
+  const r=await fetch(url,Object.assign({},options,{headers:supabaseHeaders(options.headers||{})}));
+  if(!r.ok)throw new Error('Supabase失败('+r.status+') '+await r.text());
+  if(r.status===204)return null;
+  const text=await r.text();
+  return text?JSON.parse(text):null;
+}
+function taskRow(date,t){return{task_date:date,homework:t.homework||'',dictation:t.dictation||'',recite:t.recite||'',speaking:t.speaking||'',updated_at:new Date().toISOString()};}
+function studentTaskRow(username,date,t){return{username,task_date:date,homework:t.homework||'',dictation:t.dictation||'',recite:t.recite||'',speaking:t.speaking||'',updated_at:new Date().toISOString()};}
+async function supabaseUpsert(table,rows,onConflict){
+  if(!rows||rows.length===0)return;
+  await supabaseRequest(`${table}?on_conflict=${encodeURIComponent(onConflict)}`,{method:'POST',headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(rows)});
+}
+async function supabaseSaveUsers(data){
+  const rows=Object.entries(data.users).map(([username,u])=>({username,password:u.password,role:u.role,updated_at:new Date().toISOString()}));
+  await supabaseUpsert('app_users',rows,'username');
+}
+async function supabaseDeleteUser(username){
+  await supabaseRequest('app_users?username=eq.'+encodeURIComponent(username),{method:'DELETE'});
+}
+async function supabaseSaveTasks(data){
+  const dailyRows=Object.entries(data.dailyTasks||{}).map(([date,t])=>taskRow(date,t));
+  const studentRows=[];
+  Object.entries(data.studentTasks||{}).forEach(([username,dates])=>Object.entries(dates||{}).forEach(([date,t])=>studentRows.push(studentTaskRow(username,date,t))));
+  await supabaseUpsert('daily_tasks',dailyRows,'task_date');
+  await supabaseUpsert('student_tasks',studentRows,'username,task_date');
+}
+async function supabaseSaveCheckinsAndStreaks(data){
+  const checkinRows=[];
+  Object.entries(data.checkins||{}).forEach(([username,dates])=>Object.entries(dates||{}).forEach(([date,c])=>checkinRows.push({username,checkin_date:date,homework:!!c.homework,dictation:!!c.dictation,recite:!!c.recite,speaking:!!c.speaking,updated_at:new Date().toISOString()})));
+  const streakRows=Object.entries(data.streaks||{}).map(([username,s])=>({username,streak:s.streak||0,flowers:s.flowers||0,last_checkin_date:s.lastCheckinDate||null,updated_at:new Date().toISOString()}));
+  await supabaseUpsert('checkins',checkinRows,'username,checkin_date');
+  await supabaseUpsert('streaks',streakRows,'username');
+}
+async function supabaseSaveChatMessages(data){
+  const rows=(data.chatMessages||[]).map(m=>({id:getChatMessageKey(m),username:m.username,role:m.role,message:m.message,created_at:m.timestamp||new Date().toISOString()}));
+  await supabaseUpsert('chat_messages',rows,'id');
+}
+async function supabaseSaveHiddenChatMessages(data){
+  const rows=[];
+  Object.entries(data.hiddenChatMessages||{}).forEach(([username,keys])=>(keys||[]).forEach(message_key=>rows.push({username,message_key})));
+  await supabaseUpsert('hidden_chat_messages',rows,'username,message_key');
+}
+async function supabaseSaveAll(data){
+  await supabaseSaveUsers(data);
+  await supabaseSaveTasks(data);
+  await supabaseSaveCheckinsAndStreaks(data);
+  await supabaseSaveChatMessages(data);
+  await supabaseSaveHiddenChatMessages(data);
 }
 
 function getTaskForStudent(student,date,cat){
@@ -684,7 +672,7 @@ async function doLogin(){
   if(!u||!p){e.textContent=_('errorFill');return;}
   showLoading(_('loading'));
   try{
-    // 登录以GitHub远程data.json为准，避免旧设备localStorage里的账号被误认为仍存在。
+    // 登录以Supabase远程用户表为准，避免旧设备localStorage里的账号被误认为仍存在。
     try{await fetchDataFromApi();await syncPendingUsers();}catch(x){await fetchData();}
     if(!appData.users[u]){
       const pending=loadPendingUsers()[u];
@@ -912,9 +900,7 @@ function renderTeacherPodium(main){main.innerHTML=renderPodiumHTML();}
 // ===== TEACHER: Settings =====
 function renderTeacherSettings(main){
   const users=Object.entries(appData.users);
-  const token=getToken();
-  let ts=token?`<div class="settings-card"><h4>${_('settingsToken')}</h4><div style="display:flex;align-items:center;gap:10px"><span style="color:#009246;font-weight:600;">${_('settingsTokenOk')}</span><span style="font-size:11px;color:#888;">${token.substring(0,8)}...</span><button class="btn-sm outline" onclick="clearToken()">${_('settingsTokenChange')}</button></div><div class="hint">${_('settingsTokenHint')}</div></div>`
-  :`<div class="settings-card" style="border:2px solid #ff9800;"><h4>${_('settingsTokenWarn')}</h4><div class="hint" style="margin-bottom:10px">${_('settingsTokenWarnHint1')}<br><a href="https://github.com/settings/tokens" target="_blank" style="color:#009246;">${_('settingsTokenWarnHint2')}</a>${_('settingsTokenWarnHint3')}</div><div class="row"><input type="password" id="tokenInput" placeholder="${_('settingsTokenPlaceholder')}" style="flex:1"><button class="btn-sm primary" onclick="saveToken()">${_('settingsTokenSave')}</button></div><div class="hint">${_('settingsTokenWarnHint4')}</div></div>`;
+  let ts=`<div class="settings-card"><h4>${_('settingsToken')}</h4><div style="display:flex;align-items:center;gap:10px"><span style="color:#009246;font-weight:600;">${_('settingsTokenOk')}</span><button class="btn-sm outline" onclick="refreshCloudData()">${_('settingsTokenChange')}</button></div><div class="hint">${_('settingsTokenHint')}</div></div>`;
 
   main.innerHTML=ts+`
     <div class="settings-card"><h4>${_('settingsLanguage')}</h4>
@@ -942,15 +928,17 @@ function renderTeacherSettings(main){
 }
 
 async function saveToken(){
-  const t=document.getElementById('tokenInput').value.trim();
-  if(!t){showToast(_('settingsTokenPlaceholder'));return;}
-  setToken(t);showLoading(_('settingsTokenVerify'));
-  try{await fetchData();updateSyncStatus(true);showToast(_('settingsTokenOK'));}
-  catch(e){try{await saveData('初始化数据');updateSyncStatus(true);showToast(_('settingsTokenOK'));}catch(e2){setToken('');showToast(_('settingsTokenBad'));updateSyncStatus(false);}}
-  hideLoading();renderTeacherSettings(document.getElementById('teacherMain'));
+  return refreshCloudData();
 }
 
-function clearToken(){if(confirm(_('confirmRemoveToken'))){setToken('');showToast(_('settingsTokenBuiltin'));updateSyncStatus();renderTeacherSettings(document.getElementById('teacherMain'));}}
+async function refreshCloudData(){
+  showLoading(_('syncing'));
+  try{await fetchDataFromApi();updateSyncStatus(true);showToast(_('syncOK'));renderTeacherSettings(document.getElementById('teacherMain'));}
+  catch(e){updateSyncStatus(false);showToast(_('syncFail'));}
+  hideLoading();
+}
+
+function clearToken(){refreshCloudData();}
 
 async function addTeacher(){
   const u=document.getElementById('newTeacherUser').value.trim(),p=document.getElementById('newTeacherPass').value;
