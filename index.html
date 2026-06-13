@@ -282,7 +282,7 @@ const I18N = {
     regBtn:'注 册', switchToLogin1:'已有账号？', switchToLoginLink:'返回登录',
     errorFill:'请输入用户名和密码', errorPassShort:'密码至少4位', errorPassMismatch:'两次密码不一致',
     errorReserved:'该用户名为教师保留', errorUserExists:'用户名已存在', errorNotFound:'用户不存在',
-    errorWrongPass:'密码错误', errorNetwork:'网络错误，请重试',
+    errorWrongPass:'密码错误', errorNetwork:'网络错误，请重试', errorDeletedUser:'该用户名已被删除，请换一个用户名',
     regSuccess:'✅ 注册成功！请登录', regSuccessNoSync:'✅ 注册成功！（教师端配置Token后可同步）',
     teacherHeader:'👨‍🏫 教师端', studentHeader:'🇮🇹 Il Mio Diario Estivo',
     tnav_students:'学生', tnav_tasks:'作业', tnav_podium:'排行榜', tnav_chat:'聊天', tnav_settings:'设置',
@@ -328,7 +328,7 @@ const I18N = {
     regBtn:'Register', switchToLogin1:'Already have an account? ', switchToLoginLink:'Back to Login',
     errorFill:'Please fill in username and password', errorPassShort:'Password must be at least 4 characters', errorPassMismatch:'Passwords do not match',
     errorReserved:'This username is reserved for teachers', errorUserExists:'Username already exists', errorNotFound:'User not found',
-    errorWrongPass:'Wrong password', errorNetwork:'Network error, please retry',
+    errorWrongPass:'Wrong password', errorNetwork:'Network error, please retry', errorDeletedUser:'This username was deleted. Please choose another one',
     regSuccess:'✅ Registered! Please login', regSuccessNoSync:'✅ Registered! (Sync after teacher configures Token)',
     teacherHeader:'👨‍🏫 Teacher', studentHeader:'🇮🇹 Il Mio Diario Estivo',
     tnav_students:'Students', tnav_tasks:'Tasks', tnav_podium:'Podium', tnav_chat:'Chat', tnav_settings:'Settings',
@@ -374,7 +374,7 @@ const I18N = {
     regBtn:'Registrati', switchToLogin1:'Hai già un account? ', switchToLoginLink:'Torna al login',
     errorFill:'Inserisci nome utente e password', errorPassShort:'La password deve avere almeno 4 caratteri', errorPassMismatch:'Le password non corrispondono',
     errorReserved:'Nome utente riservato agli insegnanti', errorUserExists:'Nome utente già esistente', errorNotFound:'Utente non trovato',
-    errorWrongPass:'Password errata', errorNetwork:'Errore di rete, riprova',
+    errorWrongPass:'Password errata', errorNetwork:'Errore di rete, riprova', errorDeletedUser:'Questo nome utente è stato eliminato. Scegline un altro',
     regSuccess:'✅ Registrato! Accedi', regSuccessNoSync:'✅ Registrato! (Sincronizza dopo che l\'insegnante configura il Token)',
     teacherHeader:'👨‍🏫 Insegnante', studentHeader:'🇮🇹 Il Mio Diario Estivo',
     tnav_students:'Studenti', tnav_tasks:'Compiti', tnav_podium:'Podio', tnav_chat:'Chat', tnav_settings:'Impostazioni',
@@ -535,6 +535,7 @@ function normalizeData(data){
   data.streaks=data.streaks||{};
   data.chatMessages=data.chatMessages||[];
   data.hiddenChatMessages=data.hiddenChatMessages||{};
+  data.deletedUsers=data.deletedUsers||[];
   if(!data.users['toni']&&data.users['Antonio']){data.users['toni']=data.users['Antonio'];delete data.users['Antonio'];}
   return data;
 }
@@ -708,19 +709,23 @@ async function doRegister(){
     // 注册必须直连Supabase并通过写入后复查，避免出现“注册成功但登录不存在”。
     await fetchDataFromApi();
     if(!appData.chatMessages)appData.chatMessages=[];
+      if(getDeletedUsers(appData).has(u)){e.textContent=_('errorDeletedUser');hideLoading();return;}
       if(appData.users[u]){e.textContent=_('errorUserExists');hideLoading();return;}
       const before=cloneData(appData);
       appData.users[u]={password:p,role:'student'};
       try{
         await saveData('注册学生:'+u);
-        await fetchDataFromApi();
-        if(!appData.users[u]||appData.users[u].password!==p)throw new Error('注册后复查失败');
+        const saved=await supabaseGetUser(u);
+        if(!saved||saved.password!==p||saved.role!=='student')throw new Error('注册后复查失败');
+        appData=before;
+        appData.users[u]={password:p,role:'student'};
+        saveLocalData();
         removePendingUser(u);showToast(_('regSuccess'));
       }
     catch(x){
       appData=before;
       saveLocalData();
-      e.textContent=_('errorNetwork');
+      e.textContent=x&&x.message==='用户已删除'?_('errorDeletedUser'):_('errorNetwork');
       hideLoading();
       return;
     }
