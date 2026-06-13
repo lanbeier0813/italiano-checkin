@@ -470,7 +470,7 @@ function updateAllUIText(){
 }
 
 // ===== CONFIG =====
-const REPO_OWNER='a1studio-user', REPO_NAME='italiano-checkin', DATA_PATH='data.json', TOKEN_KEY='github_token', CHAT_MAX=200;
+const REPO_OWNER='a1studio-user', REPO_NAME='italiano-checkin', DATA_PATH='data.json', TOKEN_KEY='github_token', CHAT_MAX=200, PENDING_USERS_KEY='italiano_pending_users';
 const BUILTIN_TOKEN='ghp_'+'BEVyv3fajDIH0AIVDrnZgMwDoGiLCu02HymD';
 let appData=null, dataSha=null, currentUser=null, teacherTaskStudent='__default__', chatTimer=null, chatLongPressTimer=null, saveLock=Promise.resolve();
 
@@ -609,6 +609,47 @@ async function saveDataNow(msg,pending){
 const LK='italiano_local_data';
 function loadLocalData(){const r=localStorage.getItem(LK);return r?normalizeData(JSON.parse(r)):getInitialData();}
 function saveLocalData(){localStorage.setItem(LK,JSON.stringify(appData));}
+function loadPendingUsers(){try{return JSON.parse(localStorage.getItem(PENDING_USERS_KEY)||'{}')||{};}catch(e){return{};}}
+function savePendingUsers(users){localStorage.setItem(PENDING_USERS_KEY,JSON.stringify(users||{}));}
+function addPendingUser(username,password){
+  const users=loadPendingUsers();
+  users[username]={password,role:'student',createdAt:new Date().toISOString()};
+  savePendingUsers(users);
+}
+function removePendingUser(username){
+  const users=loadPendingUsers();
+  if(users[username]){delete users[username];savePendingUsers(users);}
+}
+async function syncPendingUsers(){
+  const pending=loadPendingUsers();
+  const names=Object.keys(pending);
+  if(names.length===0)return false;
+  const remote=await fetchRemoteFile();
+  dataSha=remote.sha;
+  const merged=cloneData(remote.data);
+  const synced=[];
+  let changed=false;
+  for(const name of names){
+    const u=pending[name];
+    if(!u||!u.password){delete pending[name];continue;}
+    if(!merged.users[name]){
+      merged.users[name]={password:u.password,role:'student'};
+      synced.push(name);changed=true;
+    }else{
+      synced.push(name);
+    }
+  }
+  if(changed){
+    appData=merged;
+    await saveData('同步本地注册:'+synced.join(','));
+  }else{
+    appData=merged;
+    saveLocalData();
+  }
+  for(const name of synced)delete pending[name];
+  savePendingUsers(pending);
+  return changed;
+}
 function sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
 async function apiFetch(url,options={}){
   const token=getToken();
@@ -644,9 +685,22 @@ async function doLogin(){
   showLoading(_('loading'));
   try{
     // 登录以GitHub远程data.json为准，避免旧设备localStorage里的账号被误认为仍存在。
-    try{await fetchDataFromApi();}catch(x){await fetchData();}
-    if(!appData.users[u]){e.textContent=_('errorNotFound');hideLoading();return;}
+    try{await fetchDataFromApi();await syncPendingUsers();}catch(x){await fetchData();}
+    if(!appData.users[u]){
+      const pending=loadPendingUsers()[u];
+      if(pending&&pending.password===p){
+        if(!appData)appData=loadLocalData();
+        appData.users[u]={password:p,role:'student'};
+        saveLocalData();
+        currentUser={username:u,role:'student'};
+        showStudentPage();hideLoading();showToast(_('syncFail'));
+        setTimeout(async()=>{try{await syncPendingUsers();}catch(e){}},1000);
+        return;
+      }
+      e.textContent=_('errorNotFound');hideLoading();return;
+    }
     if(appData.users[u].password!==p){e.textContent=_('errorWrongPass');hideLoading();return;}
+    removePendingUser(u);
     currentUser={username:u,role:appData.users[u].role};
     if(currentUser.role==='teacher')showTeacherPage();else showStudentPage();
     hideLoading();
@@ -669,8 +723,15 @@ async function doRegister(){
     if(appData.users[u]){e.textContent=_('errorUserExists');hideLoading();return;}
     const before=cloneData(appData);
     appData.users[u]={password:p,role:'student'};
-    try{await saveData('注册学生:'+u);showToast(_('regSuccess'));}
-    catch(x){appData=before;saveLocalData();e.textContent=_('syncFail');hideLoading();return;}
+    try{await saveData('注册学生:'+u);removePendingUser(u);showToast(_('regSuccess'));}
+    catch(x){
+      addPendingUser(u,p);
+      appData=before;
+      appData.users[u]={password:p,role:'student'};
+      saveLocalData();
+      showToast(_('regSuccessNoSync'));
+      setTimeout(async()=>{try{await syncPendingUsers();}catch(e){}},1000);
+    }
     showLogin();hideLoading();
   }catch(x){e.textContent=_('errorNetwork');hideLoading();}
 }
@@ -1106,4 +1167,5 @@ showPage('loginPage');
 </script>
 </body>
 </html>
+
 
