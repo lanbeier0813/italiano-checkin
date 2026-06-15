@@ -1,4 +1,4 @@
-const CACHE = 'italiano-checkin-v16';
+const CACHE = 'italiano-checkin-v17';
 const URLS = [
   '/italiano-checkin/',
   '/italiano-checkin/index.html',
