@@ -502,7 +502,7 @@ async function fetchSupabaseData(){
   daily.forEach(t=>{if((t.task_date||'').startsWith(DELETED_USER_PREFIX))deletedUsers.add(decodeDeletedUsername(t.task_date));});
   data.deletedUsers=Array.from(deletedUsers);
   users.forEach(u=>{if(!deletedUsers.has(u.username))data.users[u.username]={password:u.password,role:u.role};});
-  users.filter(u=>deletedUsers.has(u.username)).forEach(u=>{supabaseDeleteUser(u.username).catch(()=>{});});
+  users.filter(u=>deletedUsers.has(u.username)).forEach(u=>{deleteAccountStrict(u.username).catch(()=>{});});
   daily.forEach(t=>{
     if((t.task_date||'').startsWith(DELETED_USER_PREFIX))return;
     data.dailyTasks[t.task_date]={homework:t.homework||'',dictation:t.dictation||'',recite:t.recite||'',speaking:t.speaking||''};
@@ -648,9 +648,14 @@ async function supabaseDeleteUser(username){
     supabaseRequest('streaks?username=eq.'+name,{method:'DELETE'})
   ]);
   const deleted=await supabaseRequest('app_users?username=eq.'+name,{method:'DELETE',headers:{'Prefer':'return=representation'}});
-  if(!Array.isArray(deleted)||deleted.length===0)throw new Error('用户删除未生效');
   const check=await supabaseRequest('app_users?select=username&username=eq.'+name);
   if(check&&check.length>0)throw new Error('用户仍存在');
+}
+async function deleteAccountStrict(username){
+  if(username==='toni')throw new Error('不能删除主管理员');
+  await supabaseDeleteUser(username);
+  if(await supabaseGetUser(username))throw new Error('用户仍存在');
+  if(!await supabaseIsDeletedUser(username))throw new Error('删除记录未写入');
 }
 async function supabaseClearOldChat(){
   const cutoff=encodeURIComponent(getTodayStartISO());
@@ -992,7 +997,7 @@ async function addAccount(){
   const before=cloneData(appData);
   appData.users[u]={password:p,role};
   showLoading(_('syncing'));
-  try{await saveData((role==='teacher'?'添加教师:':'注册学生:')+u);updateSyncStatus(true);}
+  try{await supabaseCreateUser(u,p,role);await fetchDataFromApi();updateSyncStatus(true);}
   catch(e){appData=before;saveLocalData();updateSyncStatus(false);hideLoading();showToast(_('syncFail'));renderTeacherSettings(document.getElementById('teacherMain'));return;}
   hideLoading();
   showToast(_('teacherAdded'));renderTeacherSettings(document.getElementById('teacherMain'));
@@ -1004,10 +1009,11 @@ async function deleteUser(name){
   delete appData.users[name];delete appData.checkins[name];delete appData.streaks[name];
   if(appData.studentTasks)delete appData.studentTasks[name];
   showLoading(_('syncing'));
-  try{await saveData('删除用户:'+name);updateSyncStatus(true);}
+  try{await deleteAccountStrict(name);saveLocalData();updateSyncStatus(true);}
   catch(e){appData=before;saveLocalData();updateSyncStatus(false);hideLoading();showToast(_('syncFail'));renderTeacherSettings(document.getElementById('teacherMain'));return;}
   hideLoading();
   showToast(_('userDeleted'));renderTeacherSettings(document.getElementById('teacherMain'));
+  fetchDataFromApi().then(()=>{updateSyncStatus(true);renderTeacherSettings(document.getElementById('teacherMain'));}).catch(()=>updateSyncStatus(false));
 }
 
 // ===== STUDENT =====
