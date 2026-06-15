@@ -7,6 +7,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="意大利语打卡">
 <meta name="theme-color" content="#009246">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <link rel="manifest" href="/italiano-checkin/manifest.json">
 <link rel="icon" type="image/png" sizes="192x192" href="/italiano-checkin/icon-192.png">
 <link rel="apple-touch-icon" href="/italiano-checkin/icon-192.png">
@@ -472,6 +475,7 @@ function updateAllUIText(){
 // ===== CONFIG =====
 const SUPABASE_URL='https://imzxxbxdjwqfduwsqipz.supabase.co';
 const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imltenh4YnhkandxZmR1d3NxaXB6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTU0MzIsImV4cCI6MjA5Njg5MTQzMn0.cq8SAZU2vOl3VMdgML4LlpSKCCH-AFrYSjW64MHipnk';
+const APP_VERSION='v20';
 const CHAT_MAX=200, PENDING_USERS_KEY='italiano_pending_users', DELETED_USER_PREFIX='__deleted_user__:', SUPABASE_TIMEOUT_MS=12000, SUPABASE_RETRIES=2;
 let appData=null, currentUser=null, teacherTaskStudent='__default__', chatTimer=null, teacherRefreshTimer=null, chatLongPressTimer=null, saveLock=Promise.resolve();
 
@@ -1221,12 +1225,21 @@ let deferredPrompt=null;
 window.addEventListener('beforeinstallprompt',(e)=>{e.preventDefault();deferredPrompt=e;document.querySelectorAll('.install-banner').forEach(b=>b.classList.add('show'));});
 function installPWA(){if(deferredPrompt){deferredPrompt.prompt();deferredPrompt.userChoice.then(r=>{if(r.outcome==='accepted'){document.querySelectorAll('.install-banner').forEach(b=>b.classList.remove('show'));}deferredPrompt=null;});}else{showToast('📲 请使用浏览器的"添加到主屏幕"功能');}}
 window.addEventListener('appinstalled',()=>{deferredPrompt=null;document.querySelectorAll('.install-banner').forEach(b=>b.classList.remove('show'));});
-if('serviceWorker' in navigator){navigator.serviceWorker.register('/italiano-checkin/sw.js').then(reg=>{reg.update();}).catch(()=>{});}
+async function resetAppCaches(){
+  try{if('caches' in window){const keys=await caches.keys();await Promise.all(keys.map(k=>caches.delete(k)));}}catch(e){}
+  try{localStorage.setItem('italiano_app_version',APP_VERSION);}catch(e){}
+}
+if('serviceWorker' in navigator){
+  resetAppCaches().then(()=>navigator.serviceWorker.register('/italiano-checkin/sw.js?v=20')).then(reg=>reg.update()).catch(()=>{});
+}
 
 document.addEventListener('keydown',e=>{if(e.key==='Enter'){if(document.getElementById('loginPage').classList.contains('active'))doLogin();}});
 
 // ===== INIT =====
 clearLegacyPendingUsers();
+if(location.protocol.startsWith('http')&&new URLSearchParams(location.search).get('v')!==APP_VERSION.slice(1)){
+  location.replace(location.pathname+'?v='+APP_VERSION.slice(1));
+}
 updateAllUIText();
 showPage('loginPage');
 </script>
